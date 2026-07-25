@@ -21,7 +21,7 @@ jobs:
       - name: Checkout
         # 第三方 action 一律釘選完整 commit SHA，不用可能被上游重新指向的浮動標籤（如 @v4）；
         # SHA 後面用註解標明對應版本，方便人工核對與日後升級（Dependabot 會自動提 PR 更新）。
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: 驗證 Markdown 標題／連結、六大模組規格檔、知識圖譜快照
         run: python3 .github/scripts/check_repo.py
