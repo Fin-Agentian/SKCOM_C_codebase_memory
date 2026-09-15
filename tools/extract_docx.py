@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """群益 CapitalAPI docx 手冊 → Markdown 純文字抽取器。
 
-用法：python3 tools/extract_docx.py
-輸入：Source_code/**/*.docx
-輸出：api_spec/_raw/<檔名>.md（段落 + Markdown 表格，供 AI/人閱讀與後續規格結構化）
+用法：python3 tools/extract_docx.py [--tree CapitalAPI_2.13.59_CExample] [--out api_spec/_raw/v2.13.59]
+輸入：Source_code/<tree>/**/*.docx（預設取版本最高的 CapitalAPI_*_CExample）
+輸出：<out>/<檔名>.md（預設 api_spec/_raw/v<版本>/；段落 + Markdown 表格，供 AI/人閱讀與後續規格結構化）
+
+註：api_spec/_raw/*.md 平面檔是 V2.13.57 基準（modules/flows 以 `_raw/<檔>.md:行號` 引用，勿覆寫）；
+    之後每個版本各放一個 v<版本>/ 子目錄。
 """
 import re
 import zipfile
@@ -78,12 +81,35 @@ def extract(docx_path):
     return "\n".join(out) + "\n"
 
 
+def tree_version(tree):
+    m = re.search(r"CapitalAPI_([\d.]+)_CExample", tree.name)
+    return m.group(1) if m else tree.name
+
+
+def find_default_tree():
+    trees = [p for p in SRC.glob("CapitalAPI_*_CExample") if p.is_dir()]
+    if not trees:
+        raise SystemExit("Source_code/ 下找不到 CapitalAPI_*_CExample")
+    return max(trees, key=lambda p: tuple(int(x) for x in tree_version(p).split(".")))
+
+
 def main():
-    OUT.mkdir(parents=True, exist_ok=True)
-    for docx in sorted(SRC.rglob("*.docx")):
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--tree", help="Source_code 下的範例包目錄名或路徑（預設：版本最高者）")
+    ap.add_argument("--out", help="輸出目錄（預設：api_spec/_raw/v<版本>/）")
+    a = ap.parse_args()
+    if a.tree:
+        tree = Path(a.tree) if Path(a.tree).is_dir() else SRC / a.tree
+    else:
+        tree = find_default_tree()
+    out = Path(a.out) if a.out else OUT / f"v{tree_version(tree)}"
+    out.mkdir(parents=True, exist_ok=True)
+    print(f"來源 {tree.relative_to(ROOT)} → {out.relative_to(ROOT)}/")
+    for docx in sorted(tree.rglob("*.docx")):
         if "~$" in docx.name:  # Word 暫存檔
             continue
-        md = OUT / (docx.stem + ".md")
+        md = out / (docx.stem + ".md")
         content = f"# {docx.stem}\n\n> 來源：{docx.relative_to(ROOT)}\n\n" + extract(docx)
         md.write_text(content, encoding="utf-8")
         print(f"{len(content.splitlines()):6d} 行  {md.name}")

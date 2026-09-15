@@ -3,7 +3,10 @@
 SKReplyLib 負責回報主機連線與所有主動回報：公告、委託/成交回報（OnNewData）、智慧單回報（OnStrategyData）。
 **關鍵前置條件：呼叫 `SKCenterLib_Login` 之前，必須先建立 SKReplyLib 物件並註冊 `OnReplyMessage` 事件（handler 內回傳 sConfirmCode = -1），否則登入失敗**（見 `_raw/3.登入.md:139`、主說明 4-3-e）。
 
+> 版本基準 V2.13.59（以 V2.13.57 規格為底增補；差異見 [../changelog_2.13.57_to_2.13.59.md](../changelog_2.13.57_to_2.13.59.md)）。SKReplyLib 於 .57→.59 之間 COM 介面零變更（Interop 符號兩版一致、無函式／事件增刪），變動全在 DLL 內部行為與回報字串內容——四項修正加一項欄位新增，逐項見各節「V2.13.58／V2.13.59」註記與「陷阱與注意」15~17。
+>
 > 來源：`api_spec/_raw/12.回報.md`、`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md`（4-3 節，行 2075–2245）、官方 C# 範例碼。
+> V2.13.59 增補來源：`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md`（4-3 節，行 2011–2185；版本控管表 2.13.58 見行 37、2.13.59 見行 38）、`api_spec/_raw/v2.13.59/12.回報.md`、`Source_code/CapitalAPI_2.13.59_CExample/` 範例碼。
 
 ## 總覽：功能分區表
 
@@ -81,6 +84,7 @@ m_SKReplyLib.OnStrategyData       += new _ISKReplyLibEvents_OnStrategyDataEventH
 
 - 回傳：LONG 錯誤碼；0 成功，非 0 失敗（見 [../error_codes.md](../error_codes.md)；訊息可用 `SKCenterLib_GetReturnCodeMessage(nCode)` 轉換）。
 - 備註：需先簽署證券或期貨 API 下單聲明書方可使用。智慧單回報支援國內證券、期貨、選擇權。連線結果與回補完成分別由 `OnSolaceReplyConnection`、`OnComplete` 事件通知。
+- **V2.13.59 修正：「主動回報連線多帳號，無法斷線問題」**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）。官方版本控管表未指名是哪一支函式，本節說明與宣告在 .59 手冊 4-3-1（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2034-2040`）完全未改。同時對多個帳號呼叫 ConnectByID 的程式，升版後應實測斷線／重連行為（見 SKReplyLib_SolaceCloseByID 節與「陷阱與注意」15）。
 - 範例：`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1807,1923`、`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKReply.cs:295,330`
 
 ### SKReplyLib_CloseByID
@@ -123,6 +127,7 @@ m_SKReplyLib.OnStrategyData       += new _ISKReplyLibEvents_OnStrategyDataEventH
 
 - 回傳：LONG 錯誤碼；0 成功（見 [../error_codes.md](../error_codes.md)）。
 - 備註：中斷單一指定 Solace 連線，**若該連線同時負責報價，報價也會一併中斷**。若需中斷所有 Solace 連線，改用 `SKQuoteLib_LeaveMonitor`（見 13.國內報價）。斷線結果由 `OnSolaceReplyDisconnect` 通知。
+- **V2.13.59 修正：「主動回報連線多帳號，無法斷線問題」**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）。手冊未指名函式，4-3-4 本節文字未改（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2055-2061`）；.59 前多帳號情境可能斷不掉、重連疊加。**升版後應實測 SolaceCloseByID 的資源釋放與重連行為**（多帳號逐一斷線是否都收到 `OnSolaceReplyDisconnect` 3002、重連後是否重複掛號）。
 - 範例：`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1790,1852`、`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKReply.cs:346,354`
 
 ## 事件
@@ -230,6 +235,7 @@ m_SKReplyLib.OnStrategyData       += new _ISKReplyLibEvents_OnStrategyDataEventH
 - 回傳：無。
 - 備註：對應主說明 4-3-c。**若未收到此通知，代表新建立的回報連線及回傳回報資料異常**——應視為連線失敗處理。
 - 範例：`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1566`
+- **.59 範例注意（雙帳號回報請以 .57 版為參考）**：`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKReply.cs:153-158` 的 OnComplete 已移除 .57 版依 `m_strLoginID`／`m_strLoginID2` 分流的兩段 if/else（.57 原樣見 `Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKReply.cs:153-172`），改為一律寫入 `listNewMessage` 並點亮 `lblSignalReplySolace`。第二組物件的事件仍有掛載（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKReply.cs:296`），因此**第二組帳號的回補完成訊息會併入第一組清單，且會誤點亮第一組的 Solace 燈號**；同檔 OnSmartData／OnStrategyData 的分流仍在（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKReply.cs:165-187`），屬範例內部不一致。COM 事件本身未變（簽名相同），只影響照抄此範例的雙帳號程式。
 
 ### OnReplyClear
 
@@ -254,7 +260,7 @@ m_SKReplyLib.OnStrategyData       += new _ISKReplyLibEvents_OnStrategyDataEventH
 | 參數 | 型別 | 說明 |
 |---|---|---|
 | bstrUserID | string | 登入 ID |
-| bstrData | string | 每一筆資料以「,」分隔（欄位序見下表）；`values[0]=="980"` 表後台問題訊息，非標準格式 |
+| bstrData | string | 每一筆資料以「,」分隔（欄位序見下表）；`values[0]=="980"` 表後台問題訊息，非標準格式。**V2.13.59 修正：複委託（MarketType＝OS）之委託時效欄位在來源未提供時改回傳空字串給前端**（官方原文「修正當複委託回報沒給時效欄位時，需給前端空值」，`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`；手冊未指名對應欄位 index）——欄位仍在、只是內容為空，解析須容忍空值，不可假設一定有 ROD／IOC／FOK |
 
 - bstrData 欄位序（依官方範例 handler 變數名與 dataGridViewNoClass 欄位標籤，`ReplyForm.cs:1425` 起；index 為 `Split(',')` 後的 0-based 位置）：
 
@@ -309,10 +315,14 @@ m_SKReplyLib.OnStrategyData       += new _ISKReplyLibEvents_OnStrategyDataEventH
 | 46 | ExchangeTandemMsg | 交易所或後台退單訊息（[00] 2 碼＝交易所回應；[000] 3 碼＝交易後台；[D]＝委託成功後交易所主動退單及原因） |
 | 47 | SeqNo | 13 碼序號（成交單含 IOC/FOK 產生取消單之比對用，V2.13.38 新增） |
 | 48 | OFSTPFlag | [海期][停損限價/停損市價][已觸發][委託回報] 海期停損單觸發註記：Y（V2.13.40 新增；官方範例僅解析前 48 欄） |
+| ? | （下單時間） | **V2.13.59 新增：國內期選（適用市場 TF 期貨／TO 選擇權）新增欄位「下單時間 HH:mm:ss.fff」，index 未定**——詳下方註記 |
 
+- **V2.13.59 新增欄位「下單時間 HH:mm:ss.fff」，但欄位位置未公開**：官方僅在版本控管表載明一行「國內期選主動回報 OnNewData 新增欄位『下單時間HH:mm:ss.fff』」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`），適用市場為 **TF 期貨／TO 選擇權**。主手冊 4-3-g 的參數與備註（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2108-2120`）、分冊 `api_spec/_raw/v2.13.59/12.回報.md:210-222` 的欄位說明與「修改比較表」皆未同步更新（比較表仍停在 V2.13.45 的履約價那一列；該分冊 .57→.59 全檔差異只有標題來源路徑一行），官方範例 `Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1431,1547-1548` 也仍是 `string[] values = new string[48]`、只解析到 `values[47]`（`OFSTPFlag = values[48]` 仍被註解）。**新欄位插在第幾欄官方未載，欄位 index 未定、待實機驗證**；以固定索引切逗號欄位的解析器可能錯位（防禦寫法見「陷阱與注意」9）。
 - 回傳：無。
 - 備註：「動態退單」——被動態退單的委託會收到委託回報、取消回報與動態退單回報，若有成交部位還會有成交回報。買進：可能成交價 > 即時價格區間上限 → 退單；賣出：可能成交價 < 區間下限 → 退單。區間上限＝退單價＋退單點數、下限＝退單價－退單點數（退單點數每日盤前計算、盤中固定）。SGX DMA 變體見主說明 4-3-g-2：宣告相同，可用「交易所單號」於一般線路比對回報；改走一般線路時 SGX DMA 專線委託回報僅含委託成功、不含因價格等因素之委託失敗。
+- **V2.13.58 修正：「SGX 專線主動回報缺漏問題」**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:37`）。影響 4-3-g-2（SGX DMA）OnNewData 的回報完整性；該節文字本身未改（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2122-2129`）。走 SGX DMA 專線者若曾自行補漏（例如以一般線路回報回填），升版後應重新核對是否重複。
 - 範例：`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1425`、`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKReply.cs:285,321`
+- **.59 範例注意（雙帳號回報請以 .57 版為參考）**：`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKReply.cs:160-164` 的 OnNewData 已移除 .57 版依 `m_strLoginID`／`m_strLoginID2` 分流的兩段 if/else（.57 原樣見 `Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKReply.cs:174-184`），改為一律寫入 `listNewMessage`；第二組物件仍有掛載此事件（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKReply.cs:301`），故第二組帳號的回報會併入第一組清單。與 OnComplete 同一處回歸。
 
 ### OnData（舊，即將下線）
 
@@ -362,6 +372,7 @@ m_SKReplyLib.OnStrategyData       += new _ISKReplyLibEvents_OnStrategyDataEventH
   - 各單別專屬欄位（接續共用欄位；完整欄位表見 `_raw/12.回報.md:249-530`）：證券 MST（MovePoint、BasePrice、MarketPrice、OrgTriggerPrice、IsStartPrice、StartPrice、StartPriceDirection ＋長效單欄位 LongActionFlag/LongActionKey/LongEndDate/TriggerStop/LAType/LAQty/LADeal）；MIOC（TouchUp、TouchDown、DealQty、LimitQty、SumQty、StartTime）；MIT（BasePrice、MarketDealTrigger、PreRiskFlag、SplitFlag ＋長效單欄位）；DayTrade（IsMIT、BasePrice、TradeKind_ClearOut、停利/停損 GTE/LTE 各組欄位、時間出清與盤後定價欄位）；ClearOut（TradeKind_ClearOut、條件一/二欄位、時間出清、觸發記號、SumQty、DealQty、DealPrice_In）；OCO（TouchPriceUp、TouchPriceDown、OrderPrice2、OrderPriceType2、OrderCond2、BuySell2、Order_Type2、OrderPrice_Mark2）；AB（MarketDealTrigger）；CB（IsAND、各條件 Is*/值/方向/觸發記號/Market* 系列欄位）。期貨 STP（長效單欄位）；MST/MIT/OCO/AB 類同證券版（OCO 多 OrderOffset2 第二腳倉位）。海期 OCO（觸發價與委託價各含分子/分母欄位 TouchPriceUp_M/_D 等、OrderOffset2 0 新單/1 平倉/2 自動 ＋長效單欄位）；AB（MarketDealTrigger）。
 - 回傳：無。
 - 備註：對應主說明 4-3-m。V2.13.45 起提供證券 MIT/當沖/出清/OCO/AB/CB（V2.13.48 移除 MMIT、MBA、LLS）與期貨 MIT/STP/MST/OCO/AB 新格式；V2.13.40 起共用欄位新增萬用訊息、市場別欄位刪除 OF 海期字樣。長效單相關欄位為 V2.13.45 新增。
+- **V2.13.59 修正：「智慧單被動回報缺少逗號問題」**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）。官方未指名是哪一支事件；字面上的「被動回報」指 SKOrderLib 的 `OnStopLossReport`／`OnTSSmartStrategyReport`／`OnOFSmartStrategyReport`，**OnStrategyData（主動回報）不在其列**。但同類問題曾發生在本事件——V2.13.47「修正證券追漲停市價單主動回報(OnStrategyData)欄位揭示問題（PreQtyDirection 與 IsAskQty 間缺少逗號間隔）」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:26`）。4-3-m 本節欄位表在 .59 未有異動。**若曾為舊版缺逗號寫過 workaround（例如硬把兩欄併一欄），升版後務必重新核對分隔數**。
 - 範例：`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1655`、`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKReply.cs:290,324`
 
 ## 僅見於範例碼
@@ -388,10 +399,13 @@ m_SKReplyLib.OnStrategyData       += new _ISKReplyLibEvents_OnStrategyDataEventH
 5. **SKReplyLib_IsConnectedByID 回傳值不是錯誤碼**：0 斷線／1 連線中／2 下載中；勿以「0＝成功」慣例解讀。
 6. **SolaceCloseByID 會連報價一起斷**：若該 Solace 連線同時負責報價，中斷回報也會中斷報價；要斷全部 Solace 連線用 `SKQuoteLib_LeaveMonitor`。
 7. **舊 API 汰換對照**：OnConnect→OnSolaceReplyConnection、OnDisconnect→OnSolaceReplyDisconnect（v2.13.48）；OnData→OnNewData（即將下線）；OnSmartData→OnStrategyData（V2.13.38 移除期選格式）；SKReplyLib_CloseByID→SKReplyLib_SolaceCloseByID。新開發一律用新版。
-8. **OnNewData 解析注意**：先判斷 `values[0]=="980"`（後台問題訊息，非標準欄位格式）再解析；履約價欄位（index 9）為舊保留欄位，履約價請看 StrikePrice1/StrikePrice2（V2.13.45 修改比較表）；成交序號請以 ExecutionNo（index 38）為主而非 OkSeq；異動前量/異動後量僅證券與複委託市場提供；海期價格帶分子/分母欄位（index 12-19）需另行組合；ErrorMsg 內的「,」已被替換為空白（V2.13.39）。
-9. **OnNewData 欄位數會隨版本增加**（V2.13.38 加 SeqNo、V2.13.40 加海期停損觸發註記共 49 欄），解析請用「至少 N 欄」而非「恰好 N 欄」的防禦式寫法。
+8. **OnNewData 解析注意**：先判斷 `values[0]=="980"`（後台問題訊息，非標準欄位格式）再解析；履約價欄位（index 9）為舊保留欄位，履約價請看 StrikePrice1/StrikePrice2（V2.13.45 修改比較表）；成交序號請以 ExecutionNo（index 38）為主而非 OkSeq；異動前量/異動後量僅證券與複委託市場提供；海期價格帶分子/分母欄位（index 12-19）需另行組合；ErrorMsg 內的「,」已被替換為空白（V2.13.39）。**V2.13.59 起複委託（MarketType＝OS）的委託時效欄位在來源未給值時會是空字串**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`），欄位不會消失、也不會位移，但解析要容忍空值，別直接把該欄拿去做 enum 轉換或非空斷言。
+9. **OnNewData 欄位數會隨版本增加**（V2.13.38 加 SeqNo、V2.13.40 加海期停損觸發註記共 49 欄；**V2.13.59 國內期選再加「下單時間 HH:mm:ss.fff」，但官方未公開其 index，欄位表、修改比較表與範例都沒更新**——`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`、`api_spec/_raw/v2.13.59/12.回報.md:210-222`、`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1431`），解析請用「至少 N 欄」而非「恰好 N 欄」的防禦式寫法，並在模擬環境實測 TF／TO 的實際欄位序列後再定位新欄。
 10. **OnReplyClear 參數是市場別**（R1/R2/R3/R4/R11/R20~R23）而非 UserID，與 OnReplyClearMessage（參數為 UserID）不同，勿混用。
 11. **智慧單回報範圍**：ConnectByID 建立的智慧單回報僅支援國內證券、期貨、選擇權（海期智慧單 OCO/AB 另由 OnStrategyData 海期格式提供）；需先簽署 API 下單聲明書。
 12. **OnStrategyData 欄位佈局依市場與單別而異**：共用欄位之後接各單別專屬欄位，證券與期貨共用欄位數不同（證券多「一般/零股/盤後」欄）；智慧單狀態 999 時要改讀萬用訊息 UniversalMsg 欄位。
 13. 文件間小出入：12.回報.md 在 IsConnectedByID 備註寫「請同時接收 OnConnect」，主說明 V2.13.57 已改為「OnSolaceReplyConnection」——以主說明（新版）為準。
 14. 抽取文本中的 `SKReplyLib_OnReplyMessage4`、`SKReplyLib_OnReplyMessageV2` 為 docx 轉檔黏字造成的假名（實為「OnReplyMessage + 4-3-e」「OnReplyMessage + V2.13.57」），並非真實成員。
+15. **多帳號回報連線的斷線（V2.13.59 修正）**：官方版本控管表載明「修正主動回報連線多帳號，無法斷線問題」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`），但未指名函式，4-3-1／4-3-4 兩節文字皆未改（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2034-2040,2055-2061`）。同時掛多個帳號回報連線者，升版後應**實測 `SKReplyLib_SolaceCloseByID` 的釋放與重連行為**：逐一斷線是否都收到 `OnSolaceReplyDisconnect`（3002）、重連後是否有殘留連線疊加、`SKReplyLib_IsConnectedByID` 是否如實回 0。舊程式若寫了「斷不掉就重啟 API」的繞道，可在驗證後移除。
+16. **智慧單「被動回報」缺逗號修正（V2.13.59）**：官方原文「修正智慧單被動回報缺少逗號問題」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`），未指名事件。被動回報事件屬 SKOrderLib（`OnStopLossReport` 4-2-f／`OnTSSmartStrategyReport` 4-2-n／`OnOFSmartStrategyReport` 4-2-s，見 `api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:1734,1831,1953`），非本模組的 OnStrategyData；但 V2.13.47 曾對 OnStrategyData 做過同型修正（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:26`）。**若與 V2.13.47 同型（兩欄之間漏一個逗號），修好後分隔數會多一個**，凡是曾針對舊版錯誤格式做過欄位合併／位移補償的解析器，在 .59 就可能解錯，升版建議重跑一次欄位對照。實際被修的是哪一支事件、缺的逗號在哪兩欄之間，官方未載，需實測或洽群益確認。
+17. **.59 官方範例的雙帳號回報回歸**：`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKReply.cs:153-164` 的 OnComplete／OnNewData 移除了 .57 版依 `m_strLoginID`／`m_strLoginID2` 的分流（.57 見 `Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKReply.cs:153-184`），第二組帳號訊息會併入第一組清單並誤點亮第一組 Solace 燈號；同檔 OnSmartData／OnStrategyData 分流仍在（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKReply.cs:165-187`）。**COM 事件與簽名未變**，只是範例不再適合當雙帳號回報的起始模板——雙帳號請以 .57 版範例為參考。

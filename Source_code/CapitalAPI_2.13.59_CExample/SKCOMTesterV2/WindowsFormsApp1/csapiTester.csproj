@@ -1,0 +1,312 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{43A7DC26-C736-49BF-8FC5-273BA1ACA233}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>SKCOMTester2</RootNamespace>
+    <AssemblyName>SKCOMTester2</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Release\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.DirectoryServices" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Order\SKProxyOrder\SKProxySendOrderForm\OFSKProxySendOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxySendOrderForm\OFSKProxySendOrderForm.Designer.cs">
+      <DependentUpon>OFSKProxySendOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxySendOrderForm\OSSKProxySendOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxySendOrderForm\OSSKProxySendOrderForm.Designer.cs">
+      <DependentUpon>OSSKProxySendOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxySendOrderForm\TFSKProxySendOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxySendOrderForm\TFSKProxySendOrderForm.Designer.cs">
+      <DependentUpon>TFSKProxySendOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxySendOrderForm\TSSKProxySendOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxySendOrderForm\TSSKProxySendOrderForm.Designer.cs">
+      <DependentUpon>TSSKProxySendOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\OFSKProxyUpdateOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\OFSKProxyUpdateOrderForm.Designer.cs">
+      <DependentUpon>OFSKProxyUpdateOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\OSSKProxyUpdateOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\OSSKProxyUpdateOrderForm.Designer.cs">
+      <DependentUpon>OSSKProxyUpdateOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\TSSKProxyUpdateOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\TSSKProxyUpdateOrderForm.Designer.cs">
+      <DependentUpon>TSSKProxyUpdateOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\TFSKProxyUpdateOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\TFSKProxyUpdateOrderForm.Designer.cs">
+      <DependentUpon>TFSKProxyUpdateOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\StrategyOrderForm\OFStrategyOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\StrategyOrderForm\OFStrategyOrderForm.Designer.cs">
+      <DependentUpon>OFStrategyOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\StrategyOrderForm\TFStrategyOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\StrategyOrderForm\TFStrategyOrderForm.Designer.cs">
+      <DependentUpon>TFStrategyOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\StrategyOrderForm\TSStrategyOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\StrategyOrderForm\TSStrategyOrderForm.Designer.cs">
+      <DependentUpon>TSStrategyOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\UpdateOrderForm\OFUpdateOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\UpdateOrderForm\OFUpdateOrderForm.Designer.cs">
+      <DependentUpon>OFUpdateOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\UpdateOrderForm\OSUpdateOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\UpdateOrderForm\OSUpdateOrderForm.Designer.cs">
+      <DependentUpon>OSUpdateOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\UpdateOrderForm\TSTFUpdateOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\UpdateOrderForm\TSTFUpdateOrderForm.Designer.cs">
+      <DependentUpon>TSTFUpdateOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Quote\QuoteForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Quote\QuoteForm.Designer.cs">
+      <DependentUpon>QuoteForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MainForm.Designer.cs">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\ReadOrderForm\OFReadOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\ReadOrderForm\OFReadOrderForm.Designer.cs">
+      <DependentUpon>OFReadOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\ReadOrderForm\TFReadOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\ReadOrderForm\TFReadOrderForm.Designer.cs">
+      <DependentUpon>TFReadOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\ReadOrderForm\TSReadOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\ReadOrderForm\TSReadOrderForm.Designer.cs">
+      <DependentUpon>TSReadOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ReplyForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ReplyForm.Designer.cs">
+      <DependentUpon>ReplyForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SendOrderForm\OSSendOrderForm .cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SendOrderForm\OSSendOrderForm .Designer.cs">
+      <DependentUpon>OSSendOrderForm .cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SendOrderForm\OFSendOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SendOrderForm\OFSendOrderForm.Designer.cs">
+      <DependentUpon>OFSendOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SendOrderForm\TFSendOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SendOrderForm\TFSendOrderForm.Designer.cs">
+      <DependentUpon>TFSendOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Order\SendOrderForm\TSSendOrderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Order\SendOrderForm\TSSendOrderForm.Designer.cs">
+      <DependentUpon>TSSendOrderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="MainForm.resx">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SKProxyOrder\SKProxySendOrderForm\OFSKProxySendOrderForm.resx">
+      <DependentUpon>OFSKProxySendOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SKProxyOrder\SKProxySendOrderForm\OSSKProxySendOrderForm.resx">
+      <DependentUpon>OSSKProxySendOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SKProxyOrder\SKProxySendOrderForm\TFSKProxySendOrderForm.resx">
+      <DependentUpon>TFSKProxySendOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SKProxyOrder\SKProxySendOrderForm\TSSKProxySendOrderForm.resx">
+      <DependentUpon>TSSKProxySendOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\OFSKProxyUpdateOrderForm.resx">
+      <DependentUpon>OFSKProxyUpdateOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\OSSKProxyUpdateOrderForm.resx">
+      <DependentUpon>OSSKProxyUpdateOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\TSSKProxyUpdateOrderForm.resx">
+      <DependentUpon>TSSKProxyUpdateOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SKProxyOrder\SKProxyUpdateOrderForm\TFSKProxyUpdateOrderForm.resx">
+      <DependentUpon>TFSKProxyUpdateOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\StrategyOrderForm\OFStrategyOrderForm.resx">
+      <DependentUpon>OFStrategyOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\StrategyOrderForm\TFStrategyOrderForm.resx">
+      <DependentUpon>TFStrategyOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\StrategyOrderForm\TSStrategyOrderForm.resx">
+      <DependentUpon>TSStrategyOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\UpdateOrderForm\OFUpdateOrderForm.resx">
+      <DependentUpon>OFUpdateOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\UpdateOrderForm\OSUpdateOrderForm.resx">
+      <DependentUpon>OSUpdateOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\UpdateOrderForm\TSTFUpdateOrderForm.resx">
+      <DependentUpon>TSTFUpdateOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Quote\QuoteForm.resx">
+      <DependentUpon>QuoteForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\ReadOrderForm\OFReadOrderForm.resx">
+      <DependentUpon>OFReadOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\ReadOrderForm\TFReadOrderForm.resx">
+      <DependentUpon>TFReadOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\ReadOrderForm\TSReadOrderForm.resx">
+      <DependentUpon>TSReadOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ReplyForm.resx">
+      <DependentUpon>ReplyForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SendOrderForm\OSSendOrderForm .resx">
+      <DependentUpon>OSSendOrderForm .cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SendOrderForm\OFSendOrderForm.resx">
+      <DependentUpon>OFSendOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SendOrderForm\TFSendOrderForm.resx">
+      <DependentUpon>TFSendOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Order\SendOrderForm\TSSendOrderForm.resx">
+      <DependentUpon>TSSendOrderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <COMReference Include="SKCOMLib">
+      <Guid>{75AAD71C-8F4F-4F1F-9AEE-3D41A8C9BA5E}</Guid>
+      <VersionMajor>1</VersionMajor>
+      <VersionMinor>0</VersionMinor>
+      <Lcid>0</Lcid>
+      <WrapperTool>tlbimp</WrapperTool>
+      <Isolated>False</Isolated>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

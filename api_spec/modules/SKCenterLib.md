@@ -3,7 +3,9 @@
 SKCenterLib 是策略王 COM 元件（SKCOM.dll，透過 `Interop.SKCOMLib` 使用）的登入與環境設定物件。所有下單（SKOrderLib）、回報（SKReplyLib）、報價（SKQuoteLib / SKOSQuoteLib / SKOOQuoteLib）功能都必須先經由本物件完成雙因子登入後方可使用。大部分函式執行成功回傳 0（SK_SUCCESS），錯誤代碼見 [../error_codes.md](../error_codes.md)。
 
 - 文件出處：`api_spec/_raw/3.登入.md`、`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md`（4-1 節）、`api_spec/_raw/16.SGX_DMA專線.md`、`api_spec/_raw/1.環境設置.md`、`api_spec/_raw/2.導覽.md`
-- 版本基準：V2.13.57
+- 文件出處（V2.13.59 增補部分）：`api_spec/_raw/v2.13.59/3.登入.md`、`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md`（4-1 節）、`api_spec/_raw/v2.13.59/1.環境設置.md`、`api_spec/_raw/v2.13.59/2.導覽.md`
+- 版本基準：V2.13.59（以 V2.13.57 規格為底增補；差異見 [../changelog_2.13.57_to_2.13.59.md](../changelog_2.13.57_to_2.13.59.md)）
+- 本模組 V2.13.57→V2.13.59 無函式／事件增減：`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:155-281` 的 4-1 節清單（4-1-1～4-1-11、4-1-a～4-1-c）與 V2.13.57 完全相同，`Interop.SKCOMLib` 的 `SKCenterLib_*` 符號兩版亦一致。本次差異集中在新增錯誤碼 9996 與文件敘述層級。
 
 ## 總覽：功能分區表
 
@@ -30,6 +32,8 @@ SKCenterLib 是策略王 COM 元件（SKCOM.dll，透過 `Interop.SKCOMLib` 使�
 ## 初始化與事件註冊
 
 環境前置：SKCOM.dll 為 ActiveX COM 元件，需先以 `regsvr32`（或元件資料夾內 `install.bat`，系統管理員身分）註冊，位元（x64/x86）需與專案建置目標一致；C# 專案以 Add Reference 引入 SKCOM.dll 後 `using SKCOMLib;`（詳見 `api_spec/_raw/1.環境設置.md`）。
+
+V2.13.59 文件改寫：官方分冊已改寫 regsvr32 的位元對應敘述——「x32位元: 透過SysWow64的regsvr32.exe註冊 / x64位元: 透過System32的regsvr32.exe註冊 或 直接註冊即可」（`api_spec/_raw/v2.13.59/1.環境設置.md:99-100`），與 V2.13.57 寫法（x86 直接註冊、x64 透過 SysWow64）恰好互換。官方 2.13.58／2.13.59 版本歷程均未收錄此項，無從判定改寫落在哪一版，官方亦未自承前版有誤（V2.13.57 舊句以「作業系統位元」為主詞時亦可自洽）。新敘述以「元件位元」為主詞讀，與兩版隨附 `install.bat` 的實際內容一致：x86 版元件呼叫 `%systemroot%\SysWoW64\regsvr32.exe`（`Source_code/CapitalAPI_2.13.59_CExample/元件/x86/install.bat:14`；同檔 `:7-12` 另有 Windows XP x86 分支改直接呼叫 `regsvr32.exe`），x64 版元件直接呼叫 `regsvr32.exe`（`Source_code/CapitalAPI_2.13.59_CExample/元件/x64/install.bat:5`）。註冊時請以 `install.bat` 為準。註：V2.13.59 合輯主手冊附錄 A 仍為舊敘述（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4956-4957`），與同版分冊不一致。
 
 官方範例 SKCOMTesterV2 的實際寫法（節錄自 `Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/MainForm.cs:3,19,184-235`）：
 
@@ -96,6 +100,8 @@ private void MainForm_Load(object sender, EventArgs e)
   - 登入前需先註冊公告 SKReplyLib_OnReplyMessage（否則 2017 SK_WARNING_REGISTER_REPLYLIB_ONREPLYMESSAGE_FIRST）。
   - 一般身份：登入前需安裝登入 ID 有效憑證；AP/APH 群組身份：需先執行 SKCenterLib_GenerateKeyCert 成功，否則得到 1103 SK_ERROR_AP_APH_GENERATEKEY_INVALID_BEFORE_LOGIN。
   - V2.13.57 含以上：登入失敗需間隔五秒後才能再次嘗試（1129）；登入失敗達五次須重新啟動 API（9997）。
+    - 此段敘述 V2.13.59 未變動（`api_spec/_raw/v2.13.59/3.登入.md:139`、`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:191`）。
+  - V2.13.59 新增：9996 SK_ERROR_UPDATE_API_REQUIRED「此版本已無法登入，請更新版本。」——官方說明僅此一句（未載重試規則）；依其字面，此碼代表目前使用的元件版本已無法再登入，須更新 API 版本，與 9997（失敗五次、重啟 API 即可再試）應分流處理（`api_spec/_raw/v2.13.59/2.導覽.md:137,172`、`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4893`）。注意 V2.13.59 分冊 `3.登入.md` 的登入錯誤碼表只列到 9997（`api_spec/_raw/v2.13.59/3.登入.md:350`），9996 僅見於導覽與主手冊第 6 章代碼表。
   - 登入失敗原因可查 Center.log；常見（V2.13.45 起密碼平台代碼）：300 密碼錯誤、306 身分證字號（帳號）錯誤、602 未安裝登入 ID 有效憑證、604 憑證過期或已註銷。
 - 範例：`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/MainForm.cs:880`、`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/Form1.cs:109`、`Source_code/CapitalAPI_2.13.57_CExample/ExcelSample/Program.cs:507`
 
@@ -162,6 +168,7 @@ private void MainForm_Load(object sender, EventArgs e)
 
 - 回傳：int（LONG）錯誤碼；0 表示成功，其餘見 [../error_codes.md](../error_codes.md)。
 - 備註：簽署狀態由 OnShowAgreement 事件回傳。查詢時海外行情同意書一定查詢，其他狀態已為【已簽署】者不再查詢；全部已簽署時回傳 1075 SK_ERROR_ALL_AGREEMENT_SIGNED。
+  - V2.13.59 文件不一致（未列官方 changelog）：分冊已刪去「海外行情同意書一定查詢」特例，改為「查詢時，聲明書或同意書若狀態已為【已簽署】的時候，不會再進行查詢。」（`api_spec/_raw/v2.13.59/3.登入.md:244`）；但同版主手冊 4-1-8 仍保留含此特例的原句（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:232`）。兩者互相矛盾，實際行為以群益期貨確認為準；程式不應假設「海外行情同意書每次都會被重新查詢」。
 - 範例：`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/MainForm.cs:362`、`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/Form1.cs:349`
 
 ### SKCenterLib_LoginSetQuote
@@ -307,13 +314,16 @@ C# 事件掛載使用 `Interop.SKCOMLib` 之委派型別 `_ISKCenterLibEvents_On
 - 呼叫順序固定：SKCenterLib_SetLogPath（如需改路徑，最先）→ 註冊 SKReplyLib.OnReplyMessage（必要，handler 需 `out short nConfirmCode` 回傳 -1）→（群組 AP/APH）SKCenterLib_GenerateKeyCert →（SGX 用戶）SKCenterLib_SetAuthority → SKCenterLib_Login 或 SKCenterLib_LoginSetQuote。未先註冊公告會得到 2017。
 - 登入帳號需為大寫：官方範例一律 `txtAccount.Text.Trim().ToUpper()`；錯誤碼 1000 備註「請注意登入帳號是否為大寫」。
 - V2.13.57 登入節流：登入失敗需間隔五秒才能再試（1129 SK_ERROR_LOGIN_FAIL_IN_PROCESSING）；失敗達五次須重新啟動 API（9997 SK_ERROR_LOGIN_FAIL_LIMIT）。自動重試邏輯務必加延遲與次數上限。
+- V2.13.59 起另有 9996 SK_ERROR_UPDATE_API_REQUIRED「此版本已無法登入，請更新版本。」（`api_spec/_raw/v2.13.59/2.導覽.md:137`、`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4893`）：官方原文僅「此版本已無法登入，請更新版本。」一句；依其字面，此碼非暫時性失敗，重試或重啟 API 不會改變結果，須更新 SKCOM.dll 版本。**自動重試白名單不得包含 9996**——收到即停止重試、停止排程，並向使用者提示更新版本；9997 走「重啟 API」路徑、1129 走「延遲後重試」路徑，三者必須分流。
 - 雙因子憑證綁定（V2.13.35 起）：一般身份需安裝登入 ID 有效憑證；憑證過期/未安裝常見錯誤 602；電腦同時存在兩張憑證時，請先刪除無效或過期憑證（600）。AP/APH 群組身份未先 GenerateKeyCert 會得 1103。
 - V2.13.45 起登入錯誤碼改由密碼平台回覆（101/300/306/307/321/502/507/511/600/602/603/604，完整表見 `api_spec/_raw/3.登入.md:352-366`；另 `api_spec/_raw/策略王COM元件使用說明_V2.13.45以上登入代碼定義.md` 為節錄版，缺 321/602/603），與舊版 151~155、500~599 代碼並存於文件，判讀時注意 API 版本。
 - 行情連線限制：一個 ID 預設最多 2 條行情連線（國內共用 1 條、海外期選 1 條）；超過限制訂閱行情會收到 3030。只做下單/回報的程式請用 `SKCenterLib_LoginSetQuote(ID, password, "N")` 停用報價以免占用連線；停用後使用行情功能會得 1081。
+  - 來源標註：上述數字出自 V2.13.57 主手冊 3-3「行情物件連線限制說明」（`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md:154-164`）。V2.13.59 主手冊已整章刪除 3-3／3-3-1／3-3-2／3-4，3-2 註冊公告（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:135`）之後直接接第 4 章「ATL物件函式說明」（同檔 `:154`）；V2.13.59 僅剩錯誤碼 3030 SK_SUBJECT_NO_QUOTE_SUBSCRIBE「行情連線超過限制時，無法訂閱行情通知」（同檔 `:4878`）與 4-4-23 SKQuoteLib_GetQuoteStatus 備註「＊EX：若最大連線數為2, 且目前連線超過限制,則回傳:2,True.」（同檔 `:2480,2487`）可間接佐證限制仍在。官方 V2.13.59 手冊已移除此章節，但未宣告取消限制，本節連線限制說明以 V2.13.57 留存原文為準；設計上仍應假設 2 條上限，並以 SKQuoteLib_GetQuoteStatus 實測為準。
 - 文件筆誤：`2.導覽.md:101` 與主說明 160 行將函式寫成 `SKCenterLib_LogInSetQuote`（In 大寫），實際 Interop 方法名為 `SKCenterLib_LoginSetQuote`。
 - 主說明 4-1 節編號跳號（無 4-1-5），非缺漏函式。
 - SKCenterLib_SetAuthority 的 nAuthorityFlag 是位元旗標（bit 0＝SGX、bit 1＝測試環境），不是布林；一般客戶不需呼叫，誤設 bit 1 會切到測試環境。
 - 同意書：API 不支援簽署，只回報狀態（OnShowAgreement）；未簽署證券/期貨 API 下單聲明書會出現 2018/2019，且無法訂閱或取得相關市場商品資料（9999）。憑證/同意書查詢主機 Telnet 失敗見 1097/1098。
 - COM 註冊位元須與程式建置位元一致（x64 dll 配 x64 build），SKCOM.dll 與憑證、報價元件需同資料夾註冊；更版時先 uninstall 舊版再 install 新版（詳見 `api_spec/_raw/1.環境設置.md`）。
+  - V2.13.59 文件改寫：regsvr32 的位元對應敘述與 V2.13.57 恰好互換（官方版本歷程未收錄此項，無從判定落在哪一版，亦無官方文字自承前版有誤）。依 V2.13.59《1.環境設置》的寫法——註冊 32 位元 SKCOM.dll 用 `%systemroot%\SysWoW64\regsvr32.exe`、註冊 64 位元 SKCOM.dll 用 `System32\regsvr32.exe` 或直接 `regsvr32.exe`（`api_spec/_raw/v2.13.59/1.環境設置.md:99-100`；與 `Source_code/CapitalAPI_2.13.59_CExample/元件/x86/install.bat:14`、`Source_code/CapitalAPI_2.13.59_CExample/元件/x64/install.bat:5` 實際內容相符，V2.13.57 與 V2.13.59 兩版隨附的 install.bat 完全相同）。註：V2.13.59 合輯主手冊附錄 A 未同步更正，仍寫「x86位元:直接註冊即可 / x64位元:透過SysWow64的regsvr32.exe註冊」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4956-4957`），請勿依循。最保險是直接執行元件資料夾內對應位元的 `install.bat`／`Uninstall.bat`（系統管理員身分，`api_spec/_raw/v2.13.59/1.環境設置.md:12-13,24`）。
 - SKCenterLib_ResetServer 已於 V2.13.45 自文件移除，勿再使用。
 - SetICEBrand / SetMCBrand / SetMCWhiteBrand 為文件未載之品牌來源設定函式，僅特定（白牌）客群適用，一般客戶請勿呼叫。

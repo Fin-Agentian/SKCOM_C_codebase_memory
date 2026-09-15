@@ -1,6 +1,10 @@
 # 流程D：回報處理（OnNewData 解析）
 
 > 來源：`api_spec/modules/SKReplyLib.md`、`api_spec/_raw/12.回報.md`、官方 C# 範例 `Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/{MainForm,ReplyForm}.cs`、`Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKReply.cs`。
+>
+> 版本基準 V2.13.59（以 V2.13.57 規格為底增補；差異見 [../changelog_2.13.57_to_2.13.59.md](../changelog_2.13.57_to_2.13.59.md)）。V2.13.59 增補來源：`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md`、`api_spec/_raw/v2.13.59/12.回報.md`、`api_spec/_raw/v2.13.59/2.導覽.md`、官方 C# 範例 `Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs`、`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKReply.cs`。
+>
+> 引用對照：`ReplyForm.cs` 在 .57 與 .59 兩版內容完全相同，本檔既有的 `ReplyForm.cs:行號` 引用在 V2.13.59 樹一律通用；`SKCOMTester/SKReply.cs` 則有回歸差異，見「常見錯誤與檢查點」第 15 條。SKReplyLib 的事件與函式簽章兩版一致（Interop 符號無增刪），本次 V2.13.58／V2.13.59 對回報端的異動全部落在「回報字串內容」與「底層行為修正」，不需改動事件掛載程式碼。
 
 ## 目標（一句話）
 
@@ -30,6 +34,12 @@
 | 智慧單 | OnStrategyData | 是 | 新版智慧單（MST/MIOC/MIT/當沖/出清/OCO/AB/CB 等）主動回報 | `modules/SKReplyLib.md#OnStrategyData` |
 | 特殊（僅範例） | OnReplyMessageSpecial | 文件未載，範例碼存在 | 訊息中心特殊公告 | `modules/SKReplyLib.md#OnReplyMessageSpecial` |
 
+> **V2.13.58／V2.13.59 與回報事件相關的修正（事件簽章與 Interop 符號兩版一致，不需改掛載程式碼）**：
+>
+> - **V2.13.59 修正：智慧單被動回報缺少逗號問題**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）。**「被動回報」是官方用語，指智慧單「被動查詢」的結果事件**——`4-2-f OnStopLossReport`（同檔 `:1734`）、`4-2-n OnTSSmartStrategyReport`（同檔 `:1831`）、`4-2-s OnOFSmartStrategyReport`（同檔 `:1953`），由 `GetStopLossReport`／`GetTSSmartStrategyReport`／`GetOFSmartStrategyReport` 查詢後回傳，**屬 SKOrderLib，不在本流程（SKReplyLib 主動回報）範圍內**；本流程的 `OnStrategyData` 是主動回報（`4-3-m`，同檔 `:2159`），該節內容 .57／.59 逐行相同，欄位定義本次未變。官方未指名是哪一支被動回報，上述三節的文件內容本次也都沒有更動（純底層行為修正）。此類修正會讓被動查詢回報字串的分隔數改變（補回一個「,」），**若既有解析器曾針對舊版缺逗號做過 workaround（例如硬把兩欄併成一欄、或以偏移量校正後續 index），換版後會解錯**，必須重測後移除 workaround。
+> - **V2.13.59 修正：主動回報連線多帳號時無法斷線的問題**（同檔 `:38`）。影響同時掛多組帳號回報連線的程式在關閉／重連時的資源釋放（此前可能斷不掉、重連疊加）。官方未指名函式；`SKReplyLib_ConnectByID`（同檔 `:2034`）與 `SKReplyLib_SolaceCloseByID`（同檔 `:2055`）在多帳號情境值得換版後重驗。
+> - **V2.13.58 修正：SGX 專線主動回報缺漏問題**（同檔 `:37`）。走 SGX DMA 專線者的 `OnNewData` 回報完整性修正；`4-3-g-2（SGX DMA）OnNewData`（同檔 `:2122`）的宣告與欄位定義未變，備註仍是「可參考『交易所單號』於一般線路比對回報資料；若改一般線路取得 SGX DMA 專線委託回報僅含委託成功，不含委託失敗回報」（同檔 `:2129`）。
+
 ## 步驟總表
 
 | # | 呼叫 | 所屬 lib | 說明 | 規格出處（modules/xx.md#節名） |
@@ -49,6 +59,12 @@
 ## OnNewData 逐欄位解析表（含「證逐筆 vs BuySell」標籤疑義）
 
 `bstrData` 以「,」分隔；解析前先判斷 `values[0]=="980"`（後台問題訊息，非標準格式，直接記錄原始字串即可）。官方範例僅解析前 48 欄（index 0-47），第 49 欄（index 48, `OFSTPFlag`）為 V2.13.40 新增，範例未處理，**解析程式需用「至少 N 欄」而非「恰好 N 欄」的防禦式寫法**。完整欄位定義以 `modules/SKReplyLib.md#OnNewData` 為準，下表節錄並補充狀態機/解析用途：
+
+> **V2.13.59 新增：國內期選 `OnNewData` 多一欄「下單時間 HH:mm:ss.fff」，但官方未給欄位位置（本次回報端最高風險項）**
+>
+> 官方 V2.13.59 changelog 明列「國內期選主動回報 OnNewData 新增欄位『下單時間 HH:mm:ss.fff』」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`、`api_spec/_raw/v2.13.59/2.導覽.md:172`），但**欄位表完全沒有同步更新**：主手冊 `4-3-g OnNewData`（同檔 `:2108`）本次無任何欄位異動，其「修改比較表」仍停在 V2.13.45 的 StrikePrice 條目（同檔 `:2117`–`:2120`）；`12.回報.md` 的欄位清單仍只到 `Column49`、範例宣告仍是 `new string[48]`（`api_spec/_raw/v2.13.59/12.回報.md:231,235`）；官方 .59 範例碼同樣未改（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1431`）。
+>
+> 也就是說：國內期選（`MarketType` = `TF`／`TO`）的 `bstrData` 會比下表多出一欄，**官方沒說插在第幾欄**。若該欄插在中間而非附加在最後，所有以固定 index 解析的程式都會**靜默錯位**（欄位讀得到值、值卻是別欄的，不會拋例外）。換版前務必在模擬環境對 TF/TO 實際回報做逐欄比對確認位置後再固定 index；在確認之前，建議加上「錨點自檢」（例如檢查 index 2 `Type` ∈ {N,C,U,P,B,D,S}、index 3 `OrderErr` ∈ {Y,T,N}），一旦不符就記錄原始 `bstrData` 並拒絕驅動狀態機。驗證步驟見「常見錯誤與檢查點」第 13 條。
 
 | # | 欄位 | 用途摘要 | 本流程解析備註 |
 |---|---|---|---|
@@ -86,7 +102,9 @@
 | 47 | SeqNo | 13 碼序號（IOC/FOK 產生取消單比對用） | V2.13.38 新增；官方範例解析到此為止（陣列宣告 48 個元素，index 0-47） |
 | 48 | OFSTPFlag | 海期停損限價/停損市價已觸發註記（Y） | V2.13.40 新增；**官方範例未解析**，需自行以 `values.Length > 48` 判斷後讀取 |
 
-> **官方標籤疑義（index 6，BuySell）**：`_raw/12.回報.md` 中 `dataGridViewNoClass.Columns.Add("Column7", ...)` 的欄位標籤文字是「證逐筆」（`_raw/12.回報.md:231`），語意不明、也非任何已知欄位名稱；但同一段官方 C# 範例把對應變數宣告並賦值為 `BuySell`（`Source_code/.../ReplyForm.cs:1439,1502`；`_raw/12.回報.md:235` 的程式碼片段亦同），且 `OnStrategyData` 中對稱位置的欄位在文件裡明確標為「買賣別」／`BuySell2`（`_raw/12.回報.md:359,470,508`）。**結論：以程式變數名 `BuySell`（買賣別：買/賣方向）為準，「證逐筆」應是 docx 轉檔或人工填表時的標籤誤植，不是這個欄位的真實語意**，AI 生成程式碼時請勿依字面「證逐筆」去解析或建欄位名。
+> **官方標籤疑義（index 6，BuySell）**：`_raw/12.回報.md` 中 `dataGridViewNoClass.Columns.Add("Column7", ...)` 的欄位標籤文字是「證逐筆」（`_raw/12.回報.md:231`），語意不明、也非任何已知欄位名稱；但同一段官方 C# 範例把對應變數宣告並賦值為 `BuySell`（`Source_code/.../ReplyForm.cs:1439,1502`；`_raw/12.回報.md:235` 的程式碼片段亦同），且 `OnStrategyData` 中對稱位置的欄位在文件裡明確標為「買賣別」／`BuySell2`（`_raw/12.回報.md:359,470,508`）。**結論：以程式變數名 `BuySell`（買賣別：買/賣方向）為準，「證逐筆」應是 docx 轉檔或人工填表時的標籤誤植，不是這個欄位的真實語意**，AI 生成程式碼時請勿依字面「證逐筆」去解析或建欄位名。（此標籤誤植在 V2.13.59 仍未修正：`api_spec/_raw/v2.13.59/12.回報.md:231` 的 `dataGridViewNoClass.Columns.Add("Column7", "證逐筆")` 與 .57 相同，上述結論在 V2.13.59 繼續適用。）
+
+> **V2.13.59 修正（複委託回報的時效欄位）**：官方 changelog 記「修正當複委託回報沒給時效欄位時，需給前端空值」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）。意即複委託（`MarketType` = `OS`，市場別定義見 `api_spec/_raw/v2.13.59/12.回報.md:231` 的 `Column2`）在缺時效值時，**該欄仍然存在、內容為空字串**，不會整欄消失導致後續欄位左移——這對固定 index 解析是好消息。但官方未指名對應的欄位 index，也未更動欄位表；而 `OnNewData` 的欄位標籤（`api_spec/_raw/v2.13.59/12.回報.md:231` 的 Column1–Column49）裡並沒有任何一欄叫「委託時效」，語意最接近的是 index 41 `OrderEffective`（`Column42`「有效委託日」）。**究竟是哪一欄，需實機以複委託回報確認**。在確認之前，解析 `MarketType == "OS"` 的回報時，index 41 及其餘可能為空的欄位一律要**先判空再轉型**（`TryParse`／判 `IsNullOrEmpty`），不可直接 `int.Parse` 或 `Enum.Parse`，也不可把空字串當成解析失敗而丟棄整筆回報。
 
 ## 委託狀態機
 
@@ -103,9 +121,10 @@
 | S | 動態退單 | 被動：交易所依即時價格區間主動退單 | CancelOrderMarkByExchange, ExchangeTandemMsg | 同時仍會收到委託回報與取消回報（C）；若已有成交部位，另會收到成交回報（D） |
 
 備註：
-- 各下單/刪改函式（`SendStockOrder`、`CorrectPriceBySeqNo`、`CancelOrderBySeqNo` 等）回傳 0 只代表「委託伺服器接收成功」，**不代表委託真的成立/改價/刪單成功**——實際結果一律以 `OnNewData` 回報為準（見各函式備註，`modules/SKOrderLib.md`）。
+- 各下單/刪改函式（`SendStockOrder`、`CorrectPriceBySeqNo`、`CancelOrderBySeqNo` 等）回傳 0 只代表「已成功送至交易所」（V2.13.58 起的官方措辭；V2.13.57 原文為「委託伺服器接收成功」，刪改單各節至今仍沿用舊句），**不代表委託真的成立/改價/刪單成功**——實際結果一律以 `OnNewData` 回報為準（見各函式備註，`modules/SKOrderLib.md`）。
 - 非同步下單（`bAsyncOrder=true`）額外由 `OnAsyncOrder` 通知送單結果（`modules/SKOrderLib.md#OnAsyncOrder`），但委託後續狀態轉移仍一律由本流程的 `OnNewData` 驅動。
 - 動態退單成因：買進委託成交價 > 即時價格區間上限，或賣出委託成交價 < 區間下限；區間上/下限＝退單價 ± 退單點數（見 `modules/SKReplyLib.md#OnNewData` 備註）。
+- **V2.13.58 起（官方文件語意降級，介面完全未變）**：官方改寫多支下單函式與 Proxy 下單／改單／刪單函式的「回傳值」與「備註」說明——changelog 記「調整下單函式文件說明(同步、非同步委託收到回傳值為0時，表示成功送至交易所，交易結果請由回報確認)」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:37`）。受影響函式的備註統一加註「*此處委託成功，是指成功送至交易所，交易所回覆結果請由回報確認」（此註記在 .59 手冊共 27 處，涵蓋 `4-2-*` 下單函式 13 支與 `4-7-*` Proxy 下單／改單／刪單函式 14 支；.57 手冊 0 處），回傳值欄亦改寫為「同步委託：0表示成功…／非同步委託：0表示已完成處理，將 Request 送出中，結果請由 OnAsyncOrder 進行確認」（以 `SendStockOrder` 為例：同檔 `:465` 回傳值、`:466` 備註）。**上一條原本屬於本規格庫的建議，自 V2.13.58 起已是官方明文**：委託狀態機一律以 `OnNewData` 為唯一事實來源，任何把「回傳 0」當成交易成立的邏輯都應改寫。
 
 ## 最小可運作 C# 骨架
 
@@ -229,26 +248,81 @@ namespace ReplyDemo
         //   ReplyForm.cs:1549-1558，此處以狀態機取代該段 UI 陳列邏輯）
         void OnNewData(string bstrLogInID, string bstrData)
         {
-            string[] v = bstrData.Split(',');
+            string[] v = (bstrData ?? "").Split(',');
+            if (v.Length == 0) return;
+
             if (v[0] == "980") // 980：後台問題訊息，非標準欄位格式
             {
                 Console.WriteLine("【OnNewData:980】" + bstrData);
                 return;
             }
 
+            // 【V2.13.59 邊界防護】官方 .59 範例仍宣告 new string[48]（index 0-47，
+            //   Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1431），
+            //   但實際欄位數可能更多：index 48 OFSTPFlag（V2.13.40 新增），以及 V2.13.59 國內期選
+            //   新增、官方未給位置的「下單時間 HH:mm:ss.fff」
+            //   （api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38）。
+            //   一律用「至少 N 欄」判斷，且永遠保留原始 bstrData 供換版逐欄比對。
+            const int MIN_FIELDS = 48;   // 目前已知的最小欄位數（index 0-47）
+            const int KNOWN_FIELDS = 49; // 已文件化的最大欄位數（index 0-48，含 OFSTPFlag）
+            if (v.Length < MIN_FIELDS)
+            {
+                // 欄位數不足＝格式不符預期，寧可交人工檢視，也不要用可能錯位的值驅動狀態機
+                Console.WriteLine("【OnNewData:欄位數不足】len=" + v.Length + " raw=" + bstrData);
+                return;
+            }
+            if (v.Length > KNOWN_FIELDS)
+            {
+                // 超出已文件化欄位數＝疑似換版新增欄位（例如 .59 的「下單時間」）。
+                // 不中斷處理，但務必把原文留下來做逐欄 diff，確認新欄位插在第幾欄。
+                Console.WriteLine("【OnNewData:欄位數超出已知】len=" + v.Length + " raw=" + bstrData);
+            }
+
             // 逐欄位還原（完整 49 欄定義見上表「OnNewData 逐欄位解析表」）
-            string keyNo      = v[0];
-            string marketType = v[1];
-            string type       = v[2];
-            string orderErr   = v[3];
-            string buySell    = v[6];  // 官方變數名 BuySell（買賣別）；見「證逐筆 vs BuySell」標籤疑義
-            string orderNo    = v[10];
-            string price      = v[11];
-            string qty        = v[20];
-            string beforeQty  = v[21];
-            string afterQty   = v[22];
-            string executionNo = v.Length > 38 ? v[38] : ""; // 成交序號以此為主，非 OkSeq(v[25])
-            string errorMsg     = v.Length > 44 ? v[44] : "";
+            string At(int i) => (i >= 0 && i < v.Length) ? v[i] : ""; // 統一以此取值，杜絕 IndexOutOfRange
+            string keyNo      = At(0);
+            string marketType = At(1);
+            string type       = At(2);
+            string orderErr   = At(3);
+            string buySell    = At(6);  // 官方變數名 BuySell（買賣別）；見「證逐筆 vs BuySell」標籤疑義
+            string orderNo    = At(10);
+            string price      = At(11);
+            string qty        = At(20);
+            string beforeQty  = At(21);
+            string afterQty   = At(22);
+            string executionNo = At(38); // 成交序號以此為主，非 OkSeq(At(25))
+            string errorMsg    = At(44);
+            string ofstpFlag   = At(48); // OFSTPFlag：官方範例未解析，此處以 At() 安全取得
+
+            // 【V2.13.59 錨點自檢】國內期選新增欄位的位置未公開，欄位錯位時不會拋例外，
+            //   只會安靜地讀到別欄的值；先用值域固定的兩欄當錨點驗證，再往下走。
+            if (type.Length != 1 || "NCUPBDS".IndexOf(type) < 0 || "YTN".IndexOf(orderErr) < 0)
+            {
+                Console.WriteLine("【OnNewData:疑似欄位錯位】type=" + type + " orderErr=" + orderErr
+                                  + " len=" + v.Length + " raw=" + bstrData);
+                return; // 錯位時拒絕驅動狀態機，改由人工／離線 diff 判讀
+            }
+
+            // 保留原始字串：換版逐欄 diff、事後爭議回溯的唯一依據（見「常見錯誤與檢查點」第 13 條）
+            m_store.KeepRaw(keyNo, bstrData);
+
+            // 【V2.13.59】複委託（MarketType=OS）時效欄位缺值時回空字串
+            //   （api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38）：先判空再轉型。
+            if (marketType == "OS")
+            {
+                // 官方未指名「時效」對應哪一欄；欄位表最接近者為 index 41 OrderEffective
+                //（api_spec/_raw/v2.13.59/12.回報.md:231 的 Column42「有效委託日」），實際欄位待實機確認
+                string orderEffective = At(41);
+                int nOrderEffective;
+                if (string.IsNullOrEmpty(orderEffective))
+                {
+                    // 空字串是「官方沒給時效」的正常結果，不是解析失敗，不可據此丟棄整筆回報
+                }
+                else if (!int.TryParse(orderEffective, out nOrderEffective))
+                {
+                    Console.WriteLine("【OnNewData:OS 時效欄位非預期格式】" + orderEffective + " raw=" + bstrData);
+                }
+            }
 
             if (orderErr == "Y" || orderErr == "T")
             {
@@ -284,6 +358,20 @@ namespace ReplyDemo
         }
 
         readonly Dictionary<string, Record> _byKeyNo = new Dictionary<string, Record>();
+
+        // 原始回報字串保留區（本骨架新增）：欄位錯位排查、換版逐欄 diff、事後爭議回溯都靠這份原文。
+        // V2.13.59 國內期選 OnNewData 新增欄位但官方未給位置，沒有原文就查不出錯位。
+        readonly Dictionary<string, List<string>> _rawByKeyNo = new Dictionary<string, List<string>>();
+
+        public void KeepRaw(string keyNo, string raw)
+        {
+            if (!_rawByKeyNo.TryGetValue(keyNo, out var list))
+                _rawByKeyNo[keyNo] = list = new List<string>();
+            list.Add(raw);
+        }
+
+        public IReadOnlyList<string> GetRaw(string keyNo)
+            => _rawByKeyNo.TryGetValue(keyNo, out var list) ? list : (IReadOnlyList<string>)new string[0];
 
         public void Accept(string keyNo, string market, string buySell, string orderNo, string price, string qty)
             => _byKeyNo[keyNo] = new Record { State = OrderState.Accepted, Price = price, Qty = qty };
@@ -393,5 +481,9 @@ sequenceDiagram
 | 8 | 把 `SKReplyLib_IsConnectedByID` 回傳值當一般錯誤碼判斷（0＝成功慣例） | 誤判連線狀態 | 此函式 0＝斷線、1＝連線中、2＝下載中，其他值才是錯誤碼（[../error_codes.md](../error_codes.md)） |
 | 9 | 把 `OnReplyClear` 的參數當 UserID 處理 | 市場別字串（R1~R23）誤當帳號使用 | `OnReplyClear` 參數是市場別；UserID 是 `OnReplyClearMessage` 的參數 |
 | 10 | 依 docx 欄位標籤字面「證逐筆」解析 index 6 | 誤解欄位語意或建錯欄位名稱 | 該欄位程式變數名為 `BuySell`（買賣別），見上方「官方標籤疑義」說明 |
-| 11 | 認為 `SendStockOrder`/`CorrectPriceBySeqNo`/`CancelOrderBySeqNo` 等回傳 0 就代表委託/改價/刪單已經成立 | 狀態機提前判定成功，實際可能被後台或交易所拒絕 | 回傳 0 只代表「委託伺服器接收成功」，實際結果一律等 `OnNewData` 回報；非 0 查 [../error_codes.md](../error_codes.md) |
+| 11 | 認為 `SendStockOrder`/`CorrectPriceBySeqNo`/`CancelOrderBySeqNo` 等回傳 0 就代表委託/改價/刪單已經成立 | 狀態機提前判定成功，實際可能被後台或交易所拒絕 | 回傳 0 只代表「已成功送至交易所」（V2.13.58 官方措辭，非同步則為「Request 送出中，結果由 `OnAsyncOrder` 確認」），實際結果一律等 `OnNewData` 回報；非 0 查 [../error_codes.md](../error_codes.md) |
 | 12 | 沒有用 `MsgNo` 去重就重複套用狀態機 | 斷線重連後重送回報，造成成交量重複累加等錯誤 | 同一 `MsgNo` 只處理一次（可用簡單的已處理集合或以 KeyNo+MsgNo 做冪等鍵） |
+| 13 | **換版（.57→.59）後直接沿用舊的固定 index 解析，未做逐欄 diff** | V2.13.59 國內期選 `OnNewData` 多一欄「下單時間 HH:mm:ss.fff」且官方未給位置（`_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`；欄位表未更新見同檔 `:2108`、`_raw/v2.13.59/12.回報.md:231,235`、`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/ReplyForm.cs:1431`）。若該欄插在中間，index 41 之後（甚至更前）全部左右錯位，**不會拋例外**，只會安靜地把 `ErrorMsg` 當 `SeqNo`、把時間當價格 | ① 上線前在模擬環境對 `MarketType`=`TF`/`TO` 各觸發一次 N／D／C 回報，把原始 `bstrData` 整行落檔；② 與 .57 同情境的原文以「,」切欄後**逐欄對齊 diff**，找出多出來的那一欄落在哪個 index；③ 確認後才固定 index，並同步更新上表；④ 程式端常駐「錨點自檢」（index 2 `Type` ∈ {N,C,U,P,B,D,S}、index 3 `OrderErr` ∈ {Y,T,N}）與 `values.Length > KNOWN_FIELDS` 告警，見「最小可運作 C# 骨架」 |
+| 14 | 假設複委託（`MarketType`=`OS`）回報的時效欄位一定有值，直接 `int.Parse`／`Enum.Parse` | V2.13.59 起缺值改回傳空字串（`_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`），直接轉型會拋 `FormatException`；若因此丟棄整筆回報，複委託狀態機會漏單 | 官方未指名對應 index，`OnNewData` 欄位表也沒有叫「委託時效」的欄（最接近者為 index 41 `OrderEffective`／`Column42`「有效委託日」），故 `OS` 市場所有可能為空的欄位一律 `IsNullOrEmpty` + `TryParse`；空字串視為「官方未提供」的正常值，不是解析失敗 |
+| 15 | 直接照抄 V2.13.59 的 `SKCOMTester/SKReply.cs` 當「雙帳號回報」起始模板 | .59 範例的 `OnComplete`／`OnNewData` 已拿掉 `strUserID` 分流，一律寫入第一組清單 `listNewMessage`（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKReply.cs:153-158,160-164`），第二組帳號的回補完成與回報會被誤記到第一組帳號名下 | 自行依 `bstrUserID` 分流到各帳號的狀態機；可對照同檔仍保留分流的 `OnSmartData`（同檔 `:165-175`）寫法。此為官方範例的內部不一致，COM 事件本身未變（`OnNewData`/`OnComplete` 簽章、Interop 符號兩版一致） |
+| 16 | 對智慧單**被動查詢**回報沿用舊版「缺逗號」的 workaround（硬把兩欄併一欄或以偏移量校正） | V2.13.59 已修正缺逗號問題（`_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`），分隔數改變後 workaround 反而造成錯位。影響對象是 SKOrderLib 的被動查詢事件（`4-2-f OnStopLossReport`／`4-2-n OnTSSmartStrategyReport`／`4-2-s OnOFSmartStrategyReport`，同檔 `:1734`、`:1831`、`:1953`），**不是**本流程的主動回報 `OnStrategyData`（同檔 `:2159`，欄位定義本次未動） | 換版後移除所有針對舊格式的 workaround，並對實際收到的被動查詢回報重新計算欄位數。本流程的 `OnStrategyData` 不受此修正影響，但仍建議一律採「至少 N 欄 + 錨點自檢」的防禦式寫法 |
