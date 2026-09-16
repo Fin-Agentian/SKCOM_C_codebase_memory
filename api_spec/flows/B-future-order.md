@@ -2,6 +2,8 @@
 
 跨 3 個 lib（SKCenterLib 登入 → SKOrderLib 下單 → SKReplyLib 回報）的端到端開發流程。四條流程中最複雜的一條，特別留意版本陷阱（見 [../modules/SKOrderLib.md](../modules/SKOrderLib.md) 的「陷阱與注意」節）。
 
+> 版本基準 V2.13.59（以 V2.13.57 規格為底增補；差異見 [../changelog_2.13.57_to_2.13.59.md](../changelog_2.13.57_to_2.13.59.md)）。V2.13.58／V2.13.59 增補內容出處：`api_spec/_raw/v2.13.59/7.下單-國內期選.md`、`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md`、官方 C# 範例 `Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKOrder.cs`。本檔既有的 `Source_code/CapitalAPI_2.13.57_CExample/…` 與 `api_spec/_raw/<檔>.md` 引用對應 V2.13.57 來源樹，仍然有效，未隨本次升版改寫。
+
 ## 目標（一句話）
 
 在已完成登入的前提下，以 SKOrderLib 讀憑證、取期貨帳號並送出一筆國內期貨/選擇權委託（`SendFutureOrderCLR`），透過同步回傳或 `OnAsyncOrder` 取得 13 碼委託序號，再由 SKReplyLib 的 `OnNewData` 比對委託/成交狀態，並支援刪改單（Cancel/Decrease/CorrectPrice）。
@@ -38,6 +40,7 @@
 | 12 | `CancelOrderBySeqNo` / `CancelOrderByBookNo` / `CancelOrderByStockNo(Advance)` | SKOrderLib | 刪單（序號 / 書號 / 商品代號） | [SKOrderLib.md#cancelorderbyseqno](../modules/SKOrderLib.md) |
 | 13 | `DecreaseOrderBySeqNo` | SKOrderLib | 委託減量（依 13 碼序號） | [SKOrderLib.md#decreaseorderbyseqno](../modules/SKOrderLib.md) |
 | 14 | `CorrectPriceBySeqNo` / `CorrectPriceByBookNo` | SKOrderLib | 改價（序號 / 書號，`bstrMarketSymbol`=TF/TO） | [SKOrderLib.md#correctpricebyseqno](../modules/SKOrderLib.md) |
+| 15 | (選) `GetOpenInterestGW` / `GetOpenInterest` / `GetOpenInterestWithFormat` | SKOrderLib | 部位對帳；結果走 `OnOpenInterest` 或 `OnOpenInterestJson`（V2.13.58 起），查詢成敗走 `OnOpenInterestGWStatus` | 見下方「未平倉查詢與對帳」 |
 
 ## FUTUREORDER 欄位逐一說明（一般期選委託）
 
@@ -70,10 +73,12 @@
 
 | `bAsyncOrder` | `bstrMessage` 內容 | 結果取得方式 |
 |---|---|---|
-| `false`（同步） | 成功＝13 碼委託序號；失敗＝失敗原因 | 呼叫後直接讀 `out bstrMessage` |
-| `true`（非同步） | 只回 Thread ID | `OnAsyncOrder(nThreadID, nCode, bstrMessage)`，以 `nThreadID` 對應此次下單來源 |
+| `false`（同步） | 成功＝13 碼委託序號；失敗＝失敗原因 | 呼叫後直接讀 `out bstrMessage`；回傳 `nCode`＝0 表示成功、其餘非 0 皆為失敗 |
+| `true`（非同步） | 只回 Thread ID | `OnAsyncOrder(nThreadID, nCode, bstrMessage)`，以 `nThreadID` 對應此次下單來源；**回傳 `nCode`＝0 只表示「已完成處理，將 Request 送出中，結果請由 `OnAsyncOrder` 進行確認」**（V2.13.58 起官方明訂，`api_spec/_raw/v2.13.59/7.下單-國內期選.md:254`、`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:480`） |
 
-**關鍵：回傳 `nCode==0` 只代表「委託伺服器接收成功」，不等於成交**；實際狀態一律以 `OnNewData` 回報（或被動查詢）為準。刪改單家族 (`Cancel*`/`Decrease*`/`CorrectPrice*`) 同樣支援 `bAsyncOrder`，非同步結果也走 `OnAsyncOrder`。
+**關鍵：回傳 `nCode==0` 只代表「已成功送至交易所」，不等於成交**；實際狀態一律以 `OnNewData` 回報（或被動查詢）為準。刪改單家族 (`Cancel*`/`Decrease*`/`CorrectPrice*`) 同樣支援 `bAsyncOrder`，非同步結果也走 `OnAsyncOrder`。
+
+> **V2.13.58 文件調整（措辭降級，介面未變）**：「回傳值」欄本來就有，但 V2.13.57 只寫一句「0 表示成功，其餘非 0 數值都表示失敗」；V2.13.58 起下單／刪單／減量／改價各函式改寫成同步／非同步兩段——「同步委託：0 表示成功，其餘非 0 數值都表示失敗／非同步委託：0 表示已完成處理，將 Request 送出中，結果請由 `OnAsyncOrder` 進行確認」，Proxy 家族則只保留非同步那段並改指向 `OnProxyOrder`。另在**下單類**（`SendFutureOrderCLR`、`SendOptionOrder`、`SendDuplexOrder`）與 Proxy 家族的「備註」欄加註「\*此處委託成功，是指成功送至交易所，交易所回覆結果請由回報確認」。也就是把過去容易被讀成「委託成功」的回傳 0，明確降級為「已受理／已送達交易所」。**注意刪改單（`CancelOrderBySeqNo` / `DecreaseOrderBySeqNo` / `CorrectPriceBySeqNo`）的備註官方沒有一併改口，仍寫「回傳值 0 表示委託伺服器接收成功，詳細委託狀態仍須以委託刪單／減量／改價回報內容為主」**——語意方向相同，但別以為官方措辭已全面統一。任何以 `nCode==0` 當成交易成立的邏輯都要改以回報為準。出處：`api_spec/_raw/v2.13.59/7.下單-國內期選.md:254-255`（`SendFutureOrderCLR` 回傳值＋備註）、`:280-281`（`SendOptionOrder`）、`:310-311`（`SendDuplexOrder`）、`:325-326`（`CorrectPriceBySeqNo`）、`:383-384`（`DecreaseOrderBySeqNo`）、`:408-409`（`CancelOrderBySeqNo`）、`:613-614`（`SendOptionProxyAlter`，Proxy 家族代表）、`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:480-481`、版本歷程 `api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:37`（2.13.58「四、文件調整 1」）。
 
 ## OnNewData 回報比對（13 欄關鍵欄）
 
@@ -96,6 +101,8 @@
 | 47 | `SeqNo` | 13 碼序號（成交單含 IOC/FOK 產生取消單之比對，V2.13.38+） |
 
 補充：`Reserved`(40) = 盤別（A:T 盤 / B:T+1 盤）、`CallPut`(42) 選擇權類型、`ErrorMsg`(44) 退單訊息、`StrikePrice1/2`(34/37) 履約價（**勿用舊保留欄 index 9**）也常用於期選比對。一筆委託的典型生命週期：先收 `Type=N`（委託成立）→ 成交時收 `Type=D`；被動態退單會依序收委託回報、取消回報、退單回報（`CancelOrderMarkByExchange`=E）。
+
+> **V2.13.59 新增：國內期選主動回報 `OnNewData` 多一欄「下單時間 HH:mm:ss.fff」。** 事件簽名不變（只是回傳字串多一欄），但官方只在版本歷程寫了一行，**主手冊與分冊的欄位表都未同步更新，沒說新欄插在第幾欄**。上表的 index 是 V2.13.57 基準；以固定索引切欄位的解析器很可能錯位，必須在模擬環境實測欄位序列後再校正 index。出處：`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`。
 
 ## 刪改單家族
 
@@ -174,7 +181,7 @@ void SendFuture(bool bAsyncOrder)
 
     string bstrMessage;
     int c = m_pSKOrder.SendFutureOrderCLR(m_strLoginID, bAsyncOrder, ref pOrder, out bstrMessage);
-    // c==0 僅代表委託伺服器接收成功，非成交
+    // c==0 僅代表已成功送至交易所（V2.13.58 官方措辭），非成交
     if (bAsyncOrder == false)
     {
         // 同步：bstrMessage = 13 碼委託序號（成功）或失敗原因
@@ -256,7 +263,7 @@ sequenceDiagram
         O-->>App: bstrMessage=ThreadID
         O-->>App: OnAsyncOrder(threadID, nCode, msg)
     end
-    Note over App,O: nCode==0 僅代表伺服器接收成功，非成交
+    Note over App,O: nCode==0 僅代表已送至交易所（V2.13.58 措辭），非成交
 
     S->>R: 委託成立 / 成交
     R-->>App: OnNewData(Type=N 委託)
@@ -268,6 +275,32 @@ sequenceDiagram
         R-->>App: OnNewData(Type=C 取消 / U 改量 / P 改價)
     end
 ```
+
+## 未平倉查詢與對帳（V2.13.58／V2.13.59 增補）
+
+送單、收完 `OnNewData` 之後的部位對帳走 SKOrderLib 的未平倉查詢。**查詢函式本身（`GetOpenInterestGW` / `GetOpenInterest` / `GetOpenInterestWithFormat`）介面未變**，變的是回傳格式、回傳通道與查詢狀態通知：
+
+| 事件 | 觸發來源（依 V2.13.59 手冊） | 內容 | 版本 |
+|---|---|---|---|
+| `OnOpenInterest(bstrData)` | `GetOpenInterest`、`GetOpenInterestWithFormat`、`GetOpenInterestGW`（三支各有自己的欄位格式，主手冊分成三段描述同一個事件） | 逐筆回傳，`,` 分隔欄位；全部回完再回一筆以 `##` 開頭的內容表示查詢結束 | 既有 |
+| `OnOpenInterestJson(bstrData)` | `GetOpenInterestGW`、`GetOpenInterest`、`GetOpenInterestWithFormat` | **V2.13.58 起新增**：一次以 JSON 陣列字串回傳所有庫存，陣列元素內部仍是逗號分隔欄位（官方範例：`["TM,F0200009999999,TXU28500/28250K5,0,0,17,0,F123456789","TO,F0200009999999,TXU28500K5,43,0,0,0,F123456789"]`）。與逐筆的 `OnOpenInterest` 並存，可擇一使用 | V2.13.58 起 |
+| `OnOpenInterestGWStatus(nQueryStatus, bstrErrorMsg)` | `GetOpenInterestGW`、`GetOpenInterest`、`GetOpenInterestWithFormat` | `nQueryStatus` 0=查詢成功 / 1=查詢失敗；`bstrErrorMsg` **成功為空**、失敗為錯誤訊息 | 事件既有（V2.13.57 就有）；**觸發來源在 V2.13.58／V2.13.59 期間被文件擴大**（V2.13.57 手冊只寫 `GetOpenInterestGW`；兩版 changelog 都沒列這項，無法斷定落在哪一版） |
+| `OnFutureRightsStatus(nQueryStatus, bstrErrorMsg)` | `GetFutureRights`（國內權益數查詢；`GetFutureRights` 本身 V2.13.57 就有） | `nQueryStatus` 0=查詢成功 / 1=查詢失敗；`bstrErrorMsg` 成功為 `"Success!"`、失敗為錯誤訊息 | V2.13.58／V2.13.59 新增（V2.13.57 的 `Interop.SKCOMLib` 無此符號、手冊亦無此節；官方版本歷程兩版都未列，無法斷定落在哪一版） |
+
+出處：`api_spec/_raw/v2.13.59/7.下單-國內期選.md:617-622`（`OnOpenInterest`，分冊只收 GW 那一段）、`:703-709`（`OnOpenInterestGWStatus`）、`:711-717`（`OnFutureRightsStatus`）、`:719-724`（`OnOpenInterestJson`）、`:64-72`（`GetOpenInterestGW` 宣告）、`:85-88`（`GetFutureRights` 宣告）；主手冊 `api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:1711-1725`（`OnOpenInterest` 三段觸發來源）、`:1972-1978`、`:1988-1994`、`:2004-2009`；版本歷程 `:37`（2.13.58）、`:38`（2.13.59）。
+
+### 三個會讓既有解析失效的變更
+
+1. **查無庫存回傳格式改變（V2.13.58 起）** — `GetOpenInterest` / `GetOpenInterestGW` / `GetOpenInterestWithFormat` / `GetOverseaFutureOpenInterest`（官方 changelog 原文寫成 `GetOverSeaFutureOpenInterest`，實際 Interop 符號與 `modules/SKOrderLib.md` 所載均為 `GetOverseaFutureOpenInterest`，大小寫陷阱見 `modules/SKOrderLib.md`「陷阱與注意」22）查無庫存時，統一改回傳 **`001,查無資料,帳號`**（新增 Account 欄位；V2.13.57 分別是「M003 NO DATA#」與「001 查無資料」）。以整串等值比對舊訊息、或以固定欄位數判斷「查無資料」的程式，升到 V2.13.58 之後（含 V2.13.59）會失效或把這一列誤判成一般部位。判斷請改成看 `values[0]=="001"`（官方範例另把 `"970"` 一併視為非資料列）。出處：`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:37`、`:1721`、`:1725`、`api_spec/_raw/v2.13.59/7.下單-國內期選.md:622`、`:635`。另注意 `OnOpenInterestJson` 的「查無資料」說明官方兩處不一致：主手冊寫 `001,查無資料,帳號`（`策略王COM元件使用說明_V2.13.59.md:2009`），分冊寫 `001,查無資料`（`7.下單-國內期選.md:724`）——解析時兩種欄位數都要能吃，勿用整串等值比對。
+2. **`GetOpenInterestGW` 新增欄位「商品－下單代碼」（V2.13.59 新增）** — 官方同批加註「當『商品－下單代碼』查詢發生異常時，『商品－下單代碼』欄位將回傳空值。請重新呼叫 `GetOpenInterestGW` 以重新取得資料。」**欄位序列本體在官方文件是圖片，抽取後的 md 看不到內容，新欄插在第幾欄無從由文件確認**；以固定索引解析 GW 未平倉字串者，上線前必須在模擬環境實測欄位序列，並對該欄空值做重查處理。出處：`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`、`:1725`、`api_spec/_raw/v2.13.59/7.下單-國內期選.md:622`。
+3. **`OnOpenInterestGWStatus` 不再等於「這是 GW 查詢」（V2.13.58／V2.13.59）** — V2.13.59 手冊把觸發來源由 `GetOpenInterestGW` 擴為 `GetOpenInterestGW`、`GetOpenInterest`、`GetOpenInterestWithFormat` 三者，與新事件 `OnOpenInterestJson` 一致（`OnOpenInterestJson` 是 V2.13.58 新增且觸發來源就是這三支，此擴大很可能同樣發生在 V2.13.58；兩版 changelog 均未列，無法斷定）。原本「收到 `*GWStatus` 就代表跑的是 GW 版查詢」的狀態旗標會誤判，請改以自己送出的查詢種類記錄狀態。V2.13.57 呼叫非-GW 版時是否完全不觸發此事件，文件無法斷定，建議實測。出處：`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:1973`、`api_spec/_raw/v2.13.59/7.下單-國內期選.md:704`。
+
+### 官方 .59 範例的兩個提醒
+
+- `OnOpenInterestJson` 的官方 handler（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKOrder.cs:179-238`）先用 `bstrData.Contains("001,查無資料")` 擋掉查無資料，再**手刻字串切割**（只檢查頭尾是否為 `[` `]`、去掉外層中括號、用 `IndexOf('"', …)` 逐段配對雙引號），**並未使用 JSON 函式庫**。元素內容若含跳脫雙引號或巢狀結構會切錯或漏項；正式程式請改用 JSON 解析器。
+- 事件註冊在兩個 Initialize 按鈕 handler 各抄一份：`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKOrder.cs:447-451`（`btnInitialize_Click`，含 `OnOpenInterestGWStatus`、`OnFutureRightsStatus`、`OnOpenInterestJson`）與 `:1688-1692`（`MC_Initialize_Click`，多登入 ID 版）。兩處都以 `m_bfirst` 旗標包住、一個行程只會跑到其中一條；移植時只要確保自己實際走的初始化路徑有掛上這三個事件即可，照抄兩份不是必要條件。
+
+> **未公開、勿用**：V2.13.59 的 `Interop.SKCOMLib` 另出現 `GetOFOpenInterestWithDetails`，以及事件 `OnOpenInterestWithDetails`（國內期選）與 `OnOverseaFutureOpenInterestWithDetails`（海期），連同 EventHandler、`add_`／`remove_`、委派共 11 個符號（V2.13.57 完全沒有）。**官方手冊與 changelog 均未記載，用途與簽名未知，勿在正式程式使用。** 既有的 `GetOpenInterest` / `GetOpenInterestGW` / `GetOpenInterestWithFormat` 與 `OnOpenInterest` / `OnOpenInterestGWStatus` 全數保留，不受影響。
 
 ## 常見錯誤與檢查點
 
@@ -291,6 +324,10 @@ sequenceDiagram
 | `1107` 限近月商品代碼 | 智慧單非 V1 系列用了指定月份 | 用 V1 系列並填 `bstrSettlementMonth`（否則非近月未填回 `2030`） |
 | `2010` 提醒簽署期貨智慧單風險預告書 | 送期貨智慧單前未簽 | 簽署後再下智慧單（本流程一般單不需） |
 | 收不到 `OnNewData` | 回報連線只等到 `OnSolaceReplyConnection`、漏等 `OnComplete`；或 Reply 物件未在登入前註冊 | 兩事件都到才算連上；`OnReplyMessage` 必須登入前註冊回 -1 |
-| `nCode==0` 卻沒成交 | 誤把「接收成功」當「成交」 | 一律以 `OnNewData`（Type=D）或被動查詢確認 |
+| `nCode==0` 卻沒成交 | 誤把「已送至交易所」當「成交」（V2.13.58 起官方明訂：同步 0＝成功送出、非同步 0＝Request 送出中） | 一律以 `OnNewData`（Type=D）或被動查詢確認 |
 | 解析 `OnNewData` 例外 | 誤用固定欄數、把 `980` 當正常資料、讀舊保留欄 index 9 | 先判 `values[0]=="980"`；用「至少 N 欄」；履約價看 `StrikePrice1/2`、成交序號看 `ExecutionNo` |
+| `OnNewData` 欄位整批錯位（V2.13.59） | V2.13.59 新增欄位「下單時間 HH:mm:ss.fff」，官方欄位表未同步、未說明插在第幾欄 | 勿用固定欄數；模擬環境實測欄位序列後校正 index（見「OnNewData 回報比對」節的 V2.13.59 備註） |
+| 未平倉「查無庫存」被當成一般部位 | V2.13.58 起改回傳 `001,查無資料,帳號`（新增 Account 欄），舊的 `M003 NO DATA#`／`001 查無資料` 比對失效 | 改判 `values[0]=="001"`（`"970"` 為後台問題訊息）；見「未平倉查詢與對帳」 |
+| GW 未平倉欄位錯位／某欄空白 | V2.13.59 `GetOpenInterestGW` 新增「商品－下單代碼」欄；該欄查詢異常時回空值 | 上線前在模擬環境實測欄位序列；遇該欄空值重呼叫 `GetOpenInterestGW` |
+| `OnFutureRightsStatus` 查詢成功卻被判失敗 | 成功時 `bstrErrorMsg` 為 `"Success!"`（非空字串），與 `OnOpenInterestGWStatus`「成功為空」不同 | 一律以 `nQueryStatus==0` 判成功，勿用「錯誤訊息是否為空」共用解析器 |
 | `SendFutureOrderCLR` 編譯/呼叫錯 | `ref` vs 傳值不符所引用的 Interop | 依實際 `Interop.SKCOMLib` 簽名（V2=`ref`，SKCOMTester=傳值） |

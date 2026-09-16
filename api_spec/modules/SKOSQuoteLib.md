@@ -1,6 +1,9 @@
 # SKOSQuoteLib — 海外期貨（海期）報價元件：連線報價伺服器、訂閱海期商品即時報價／五檔十檔／成交明細與 K 線
 
+> 版本基準 V2.13.59（以 V2.13.57 規格為底增補；差異見 [../changelog_2.13.57_to_2.13.59.md](../changelog_2.13.57_to_2.13.59.md)）。
 > 主要來源：`api_spec/_raw/14.海期報價.md`；輔助來源：`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md`（4-5 節，行 2949–3308）、`api_spec/_raw/2.導覽.md`（新舊函式對照表）。
+> **官方 V2.13.59 手冊已移除此章節；函式本身未移除（Interop 符號兩版一致），本節以 V2.13.57 留存原文為準。** 移除範圍：主手冊 4-5 SKOSQuoteLib（海期報價）整章消失，原位置改放 4-4-u OnNotifyLiveKLineData，章節編號由 4-4 直接跳到 4-7（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2905`、`:2920`）；結構 5-8 SKFOREIGNTICK／5-12 SKFOREIGNTICK_9／5-22 SKFOREIGNLONG／5-23 SKFOREIGN_9LONG 一併刪除，結構編號出現 5-6→5-9、5-11→5-13、5-21→5-24 三處斷層（同檔 `:4100`、`:4116`、`:4164`、`:4484`、`:4559`）；`2.導覽.md` 的「SKOSQuoteLib：海期報價物件」介紹區塊與新舊函式對照表亦不存在（`api_spec/_raw/v2.13.59/2.導覽.md` 全檔僅剩錯誤碼 2025 一處提及，見 `:102`）；分冊 `14.海期報價.docx` 不在 .59 說明文件夾（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/策略王COM元件使用說明_SKCOMTesterV2/` 編號由 13 跳到 16）。
+> 判定依據（函式未移除）：Interop.SKCOMLib 的 SKOSQuoteLib 相關符號 sym57↔sym59 為 56:56 逐行相同；原生 SKCOM.dll x64 匯出表兩版皆含 `SKOSQuoteLib_RequestStocks`／`SKOSQuoteLib_RequestTicks`／`SKOSQuoteLib_GetStockByNoNineDigitLONG`（78→83、+5/−0，新增的 5 支皆為下單／權益數相關）；.59 官方範例的海期下單表單仍實際呼叫 `SKOSQuoteLib_EnterMonitorLONG`（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/Order/SendOrderForm/OFSendOrderForm.cs:321`）。
 > 回傳錯誤碼對照見 [../error_codes.md](../error_codes.md)。
 
 ## 總覽：功能分區表
@@ -49,6 +52,8 @@
 | 事件：十檔&五檔&成交明細 | OnNotifyBest10NineDigitLONG | 最佳十檔異動通知（九位小數擴充） |
 | 事件：技術分析 | OnKLineData | 歷史 K 線資料逐筆回傳 |
 | 事件：僅見於範例碼 | OnNotifyServerTime | 報價主機時間通知（RequestServerTime 對應事件） |
+
+> V2.13.58／V2.13.59 文件異動：官方在 .59 就地改寫了 2.13.46 版本歷程條目，移除清單由「國內報價 SKQuoteLib／海期報價 SKOSQuoteLib／海選報價 SKOOQuoteLib」縮為只剩「國內報價 SKQuoteLib」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:25`）。這是與 4-5 整章下架同一批的用語刷洗，**不可據此推論上表這些舊版函式已恢復提供**——官方所稱「移除」係指不再提供／不再支援，而非 typelib 拿掉。上表定位維持不變，詳見下方「舊版函式」節。
 
 ## 初始化與事件註冊
 
@@ -109,6 +114,8 @@ m_nCode = m_SKOSQuoteLib.SKOSQuoteLib_EnterMonitorLONG();
 - 回傳：LONG 錯誤碼；0 成功，非 0 失敗（見 [../error_codes.md](../error_codes.md)）。
 - 備註：連線狀態由 OnConnect 事件回傳；需先簽署期貨 API 下單聲明書（以上為 `_raw/14.海期報價.md:90` 原文）。海期各 LONG 事件均載明「須以本函式登入，該事件才會被觸發」；「與舊版 SKOSQuoteLib_EnterMonitor 僅能擇一使用、登入後僅觸發 LONG index 類型事件（OnNotifyQuoteLONG、OnNotifyTicksNineDigitLONG、OnNotifyHistoryTicksNineDigitLONG、OnNotifyBest5NineDigitLONG、OnNotifyBest10NineDigitLONG）」係依 SKQuoteLib_EnterMonitorLONG 之同構說明類推（主說明:2577），海期文件未明載。
 - 範例：Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKOSQuote.cs:119、Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/Quote/OSQuoteForm.cs:399
+- V2.13.59 現況：本函式在官方 V2.13.59 手冊雖已無專屬章節，但仍是可用且必要的前置呼叫——.59 範例的三個海期／海選下單表單都在載入時呼叫它（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/Order/SendOrderForm/OFSendOrderForm.cs:321`、`.../Order/StrategyOrderForm/OFStrategyOrderForm.cs:349`、`.../Order/SKProxyOrder/SKProxySendOrderForm/OFSKProxySendOrderForm.cs:289`），且錯誤碼 2025「請先執行海期報價SKOSQuoteLib_EnterMonitorLONG連線，再使用目前功能」仍列於 .59 手冊（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4844`、`api_spec/_raw/v2.13.59/2.導覽.md:102`）。
+- V2.13.59 範例參考：`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/Order/SendOrderForm/OFSendOrderForm.cs:19`（物件建立）、`:321`（呼叫）。.59 已無專門的海期報價範例畫面，只剩下單表單裡的這段連線程式碼可參考。
 
 ### SKOSQuoteLib_LeaveMonitor
 - 用途：中斷報價伺服器連線。
@@ -148,6 +155,7 @@ m_nCode = m_SKOSQuoteLib.SKOSQuoteLib_EnterMonitorLONG();
 
 - 回傳：LONG 錯誤碼；0 成功，非 0 失敗（見 [../error_codes.md](../error_codes.md)）。
 - 備註：限當次報價連線成功後查詢用。可搭配 LOG 檔（日期_OSQuote.log）確認是否下載海期商品檔 LoadOSCommdity；有海期帳號時，預設 Login 會占用一條報價連線（海期）。
+- V2.13.58／V2.13.59 文件刪減提醒：解讀本函式回傳值所需的「3-3 行情物件連線限制說明」（總連線數共 2 條、國內證券與國內期貨共用一條、海外期選單獨一條、以 SKCenterLib_LogInSetQuote(ID, pw, 'N') 停用報價）在 .59 主手冊已整段刪除，3-2 之後直接跳到「4、ATL物件函式說明」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:154`；.59 全目錄 grep「行情物件連線限制」「總連線數量」皆 0 命中，未搬移至他章）。上述連線數規則與 OSQuote.log 說明僅存於 V2.13.57 文件，本節保留原文。
 - 範例：Source_code/CapitalAPI_2.13.57_CExample/SKCOMTester/SKOSQuote.cs:1075、Source_code/CapitalAPI_2.13.57_CExample/SKCOMTesterV2/WindowsFormsApp1/Quote/OSQuoteForm.cs:476
 
 ### SKOSQuoteLib_SetOSQuoteServer
@@ -402,6 +410,9 @@ m_nCode = m_SKOSQuoteLib.SKOSQuoteLib_EnterMonitorLONG();
 
 以下名稱僅出現在文件的新舊對照表（`2.導覽.md:164-172`、`策略王COM元件使用說明_V2.13.57.md:221-229`）與更版紀錄；V2.13.46（含）以上版本不再提供，範例碼亦未使用。單一市場商品總數可能超過 SHORT 上限（32767），舊版（SHORT index）函式會無法正常取得報價，一律改用右列新版。
 
+> **V2.13.58／V2.13.59 文件異動：2.13.46 的移除清單被就地改寫，但不改變本節結論。** 官方在 .59 把 2024/1/29（2.13.46）版本歷程條目的移除清單由「國內報價 SKQuoteLib／海期報價 SKOSQuoteLib／海選報價 SKOOQuoteLib」縮為只剩「國內報價 SKQuoteLib」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:25`；.57 原文見 `_raw/策略王COM元件使用說明_V2.13.57.md:25`），與 4-5 整章、3-4 對照表同批下架，且 2.13.58／2.13.59 兩列版本歷程都未說明此次回溯改寫。**這段刪字不足以證明舊版函式已恢復提供**：可查證的只有 SKOSQuoteLib_EnterMonitor、GetStockByIndex、GetStockByIndexNineDigit、GetStockByNo、GetStockByNoNineDigit、GetTick、GetTickNineDigit、GetBest5、GetBest5NineDigit 的 Interop 型別宣告在 .59 仍在（sym57↔sym59 對 SKOSQuoteLib 56:56 逐行相同）；但 typelib 有宣告不等於功能仍提供——SKQuoteLib 的非-LONG 版同樣仍列於 sym59，官方卻始終列為已移除，可見官方「移除」指的是不再提供／不再支援。
+> 實務結論不變：這些舊版（SHORT index）函式一律不要使用——商品總數超過 32767 時無法正常取得報價（V2.13.57 主手冊 3-4 節原文涵蓋國內、海期、海選，見 `_raw/策略王COM元件使用說明_V2.13.57.md:187`），且依 SKQuoteLib_EnterMonitorLONG 之同構說明類推，以 EnterMonitorLONG 登入後其配套的非 LONG 事件不會觸發（海期文件未明載）。另 .59 主手冊已刪除「3-4 行情功能修改說明」整節（含 SKOSQuoteLib 的新舊函式對應一覽表），`2.導覽.md` 的同一份對照表亦一併刪除（`api_spec/_raw/v2.13.59/2.導覽.md` 全檔僅剩 `:102` 一處提及 SKOSQuoteLib），對照表原文僅存於 V2.13.57 文件。
+
 ### SKOSQuoteLib_EnterMonitor
 - 用途：舊版連線。改用 SKOSQuoteLib_EnterMonitorLONG（兩者僅能擇一使用）。
 - 簽名：`int SKOSQuoteLib_EnterMonitor();`（依 LONG 版推測，簽名待確認）
@@ -650,8 +661,14 @@ m_nCode = m_SKOSQuoteLib.SKOSQuoteLib_EnterMonitorLONG();
 10. **IsConnected 回傳慣例不同**：1 表示連線中（非 0=成功的慣例）。
 11. **非交易日資料**：SKFOREIGNLONG／SKFOREIGN_9LONG 於當日非交易日時，資料為前一交易日。
 12. **SKBEST5_9 的衍生檔欄位**：nExtendBid／nExtendAsk 等衍生一檔欄位海外市場無值。nSimulate：0=一般、1=試算。
+13. **V2.13.59 發佈包已移除全部海期報價範例**：四個範例專案同批下架海期報價示範——SKCOMTester 的 `SKOSQuote.cs/.Designer.cs/.resx` 三檔在 .59 樹中不存在，csproj 只剩 `SKQuote.cs`（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKCOMTester.csproj:170`），`Form1.cs:27` 僅殘留 `SKOSQuoteLib m_pSKOSQuote;` 的孤兒宣告（該專案已無 `new SKOSQuoteLib()`）；SKCOMTesterV2 的 `Quote\OSQuoteForm.*` 已移除，Quote 目錄只剩 QuoteForm（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/csapiTester.csproj:142`）；CppCLITester 的 `SKOSQuote.cpp/.h/.resx` 已自 vcxproj 移除，只剩 SKQuote（`Source_code/CapitalAPI_2.13.59_CExample/CppCLITester/CppCLITester/CppCLITester.vcxproj:140`）；ExcelSample 的海期報價分頁亦已拿掉（`Source_code/CapitalAPI_2.13.59_CExample/ExcelSample/ExcelSample.xls`，二進位檔無行號；`strings` 比對 .57 含 14 處 SKOSQuote 字串、.59 為 0）。隨包分冊 `14.海期報價.docx` 同樣不在 .59 說明文件夾。官方版本歷程未公告此次下架，本檔的範例引用因此一律停留在 `CapitalAPI_2.13.57_CExample/`。
+14. **COM 介面本身未變，海期報價仍可用**：文件與範例下架不等於 API 移除。Interop.SKCOMLib 的 SKOSQuoteLib 符號 sym57↔sym59 為 56:56 逐行相同，原生 SKCOM.dll x64 匯出表未減（78→83、+5/−0，且 `SKOSQuoteLib_RequestStocks`／`RequestTicks`／`GetStockByNoNineDigitLONG` 兩版皆在），`SKOSQuoteLib_EnterMonitorLONG` 仍被 .59 範例的海期下單表單呼叫（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTesterV2/WindowsFormsApp1/Order/SendOrderForm/OFSendOrderForm.cs:321`），錯誤碼 2025 也仍列於 .59 手冊（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4844`）。既有海期報價程式升到 2.13.59 在介面層不需改寫（惟 .59 版本歷程有一句未指名模組的「修正index不一致問題」，見同檔 `:38`，升級後建議回歸驗證 nIndex／nStockidx 與商品代號的對應是否仍正確）；但排查問題時官方已無對應章節可查，請以本檔與 `_raw/14.海期報價.md`（.57 留存）為準。
+15. **V2.13.59 簡化版 SKDLLCSharp.dll 移除海期報價包裝方法（DLL 路線 breaking）**：走簡化版 C# DLL（`SKDLLCSharp.dll`）而非直接使用 COM 的程式，在 .59 會編譯失敗——`SKOSQuoteLib_RequestStocks`、`SKOSQuoteLib_RequestTicks`、`SKOSQuoteLib_GetStockByNoNineDigitLONG` 三個公開方法在 .59 的包裝層 DLL 中已不存在（x64／x86 一致，`strings` 實測 .57 各命中 1、.59 全為 0），`OnNotifyOSQuoteLONG`／`OnNotifyOSBest10`／`OnNotifyOSTicks` 的 add_/remove_/RegisterEvent 符號雖殘留卻失去配套的訂閱與取值方法，形同孤兒。包裝層手冊的「海期行情」整段亦已刪除（`api_spec/_raw/v2.13.59/C_Sharp策略王DLL元件使用說明.md` 全檔 0 處提及「海期行情」），`ManageServerConnection` 的 nTargetType 由「0:回報；1:國內行情；2:海期行情；3:海選行情；4:Proxy下單」縮為「0:回報；1:國內行情；4:Proxy下單」（同檔 `:50`），OnConnection 的 loginID 說明也移除了「海期行情：SKOSQuote」（同檔 `:39`），範例下拉選單同步只剩三項（`Source_code/CapitalAPI_2.13.59_CExample/SKDLLTester/SKDLLTester/Form1.Designer.cs:4470-4473`）。底層 COM 完好，因此解法是改走 Interop.SKCOMLib 直接呼叫 SKOSQuoteLib。
+16. **V2.13.59 已無錯誤碼 2015 與 OSQuote.log 的排查說明**：`SKOrderLib_LoadOSCommodity` 的備註在 .59 精簡為只剩「具海期帳號，海期委託下單前須先下載」（`api_spec/_raw/v2.13.59/9.下單-海外期選.md:185`），.57 原有的「與 SKOSQuoteLib_EnterMonitorLONG 相關，可以先進行海期連線備妥商品檔」「出現錯誤代碼 2015，請重新連海期行情主機或重新下載」以及用 `日期_OSQuote.log` 確認商品檔是否下載成功的說明全數消失。函式簽名與回傳語意未變，遇到 2015／商品檔未備妥時請回頭參考 V2.13.57 文件與本檔第 4、8 條。
 
 ## 附錄：相關 Struct 結構物件（見 `_raw/14.海期報價.md:693-791`）
+
+> V2.13.59 現況：主手冊的 5-8 SKFOREIGNTICK、5-12 SKFOREIGNTICK_9、5-22 SKFOREIGNLONG、5-23 SKFOREIGN_9LONG 四個結構章節已刪除（結構編號斷層：`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4100` 的 5-6 直接跳到 `:4116` 的 5-9、`:4164` 的 5-13 前無 5-12、`:4484` 的 5-21 直接跳到 `:4559` 的 5-24）；SKBEST5_9 則仍留在 .59 手冊（同檔 `:4164`）。結構定義本身未變更，下表以 V2.13.57 留存原文為準。
 
 | Struct | 用途 | 關鍵欄位 |
 |---|---|---|

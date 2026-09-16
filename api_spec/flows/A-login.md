@@ -1,5 +1,8 @@
 # 流程A：初始化與登入
 
+> 版本基準 V2.13.59（以 V2.13.57 規格為底增補；差異見 [../changelog_2.13.57_to_2.13.59.md](../changelog_2.13.57_to_2.13.59.md)）。
+> 來源：`api_spec/modules/SKCenterLib.md`、`api_spec/modules/SKReplyLib.md`、`api_spec/_raw/1.環境設置.md`、`api_spec/_raw/3.登入.md`、官方 C# 範例 `SKCOMTesterV2`／`SKCOMTester`；V2.13.59 增補處另引 `api_spec/_raw/v2.13.59/*.md`。
+
 ## 目標（一句話）
 
 完成 SKCOM.dll 的 COM 環境設置、建立 `SKCenterLib` / `SKReplyLib` 物件並正確排序事件註冊，通過雙因子登入（`SKCenterLib_Login`）並建立回報連線（`SKReplyLib_ConnectByID`），直到收到 `OnComplete` 才算「連線確認」完成，可交給後續下單／報價流程使用。
@@ -15,7 +18,7 @@
 
 | # | 呼叫 | 所屬 lib | 說明 | 規格出處（modules/xx.md#節名） |
 |---|---|---|---|---|
-| 1 | `regsvr32` 或元件資料夾 `install.bat`（系統管理員身分，位元需對應 x64/x86） | — 環境 | 註冊 SKCOM.dll 及同資料夾之憑證/報價元件 | `api_spec/_raw/1.環境設置.md`；modules/SKCenterLib.md 節「陷阱與注意」 |
+| 1 | `regsvr32` 或元件資料夾 `install.bat`（系統管理員身分，位元需對應 x64/x86） | — 環境 | 註冊 SKCOM.dll 及同資料夾之憑證/報價元件。**V2.13.59《1.環境設置》改寫**位元與 `regsvr32.exe` 的對應敘述：x32 位元元件走 `SysWOW64` 的 `regsvr32.exe`、x64 位元元件走 `System32` 的 `regsvr32.exe`（或直接註冊即可）；此改寫未列入官方版本歷程，且同版合輯手冊附錄仍留舊敘述，取捨見「陷阱與注意」第 10 點 | `api_spec/_raw/1.環境設置.md`；`api_spec/_raw/v2.13.59/1.環境設置.md:99-100`（位元對應）、`:12-13`（`install.bat` 需系統管理員身分）；modules/SKCenterLib.md 節「陷阱與注意」 |
 | 2 | Visual Studio「Add Reference」引入 SKCOM.dll，程式頂端 `using SKCOMLib;` | — 專案設定 | 讓 C# 專案可見 Interop 型別（`SKCenterLib`、`SKReplyLib`…） | `api_spec/_raw/1.環境設置.md` |
 | 3 | `new SKReplyLib()` | SKReplyLib | 建立回報物件。**必須先建立**，才能在登入前掛 `OnReplyMessage` | [modules/SKReplyLib.md](../modules/SKReplyLib.md#skreplylib-回報委託成交回報事件中樞登入前必須註冊) 節「初始化與事件註冊」 |
 | 4 | 註冊 `m_pSKReply.OnReplyMessage`（handler 內 `out short nConfirmCode` 必須設為 `-1`） | SKReplyLib | **登入前置硬性要求**：未註冊會導致 `SKCenterLib_Login` 回傳 2017 | [modules/SKReplyLib.md](../modules/SKReplyLib.md)#onreplymessage；modules/SKCenterLib.md 節「方法」之 `SKCenterLib_Login`備註 |
@@ -87,7 +90,9 @@ namespace LoginDemo
             {
                 ConnectReply(UserID);
             }
-            // 失敗（101/300/306/307/600/602/604/1103/1129/9997…）處理見下方「常見錯誤與檢查點」
+            // 失敗（101/300/306/307/600/602/604/1103/1129/9997/9996…）處理見下方「常見錯誤與檢查點」
+            // 9996 為 V2.13.59 新增：此版本已無法登入，須更新元件，重試無效
+            // 來源：api_spec/_raw/v2.13.59/2.導覽.md:137（錯誤碼表）、:172（2.13.59 版本歷程列「新增錯誤代碼9996」）
         }
 
         private void ConnectReply(string userID)
@@ -159,6 +164,8 @@ sequenceDiagram
         Center-->>App: 600/602/604（憑證）、300/306/307（密碼平台）
     else 登入節流
         Center-->>App: 1129（五秒內重試）/ 9997（累計5次需重啟API）
+    else 元件版本已停用（V2.13.59 新增）
+        Center-->>App: 9996（版本已停用，須更新元件，不可重試）
     else 登入成功
         Center-->>App: 0 SK_SUCCESS
     end
@@ -185,10 +192,16 @@ sequenceDiagram
 1. **2017 SK_WARNING_REGISTER_REPLYLIB_ONREPLYMESSAGE_FIRST**：`SKCenterLib_Login` 前未建立 `SKReplyLib` 並註冊 `OnReplyMessage`。檢查點：步驟 3-4 必須在步驟 9 之前完成，且 handler 內確實回傳 `sConfirmCode = -1`。
 2. **1000 SK_ERROR_LOGIN_FIRST**：常見原因是登入帳號非大寫（官方範例一律 `.ToUpper()`），或尚未成功登入就呼叫其他函式。
 3. **1103 SK_ERROR_AP_APH_GENERATEKEY_INVALID_BEFORE_LOGIN**：AP/APH 群組身份未先執行 `SKCenterLib_GenerateKeyCert` 或執行失敗即呼叫 `Login`。非群組身份誤呼叫 `GenerateKeyCert` 則得 2028（應忽略此步驟）。
-4. **1129 SK_ERROR_LOGIN_FAIL_IN_PROCESSING / 9997 SK_ERROR_LOGIN_FAIL_LIMIT**：登入失敗需間隔五秒才能重試；累計失敗達五次須重新啟動 API。自動重試邏輯務必加延遲與次數上限，不可迴圈硬重試。
+4. **登入失敗三碼分流：1129／9997／9996**（前二者屬節流、可自救；第三者屬終止性錯誤、程式端無法自救）：
+   - **1129 SK_ERROR_LOGIN_FAIL_IN_PROCESSING**：登入失敗需間隔五秒才能重試。處理：延遲 ≥5 秒後再試。
+   - **9997 SK_ERROR_LOGIN_FAIL_LIMIT**：累計失敗達五次，須重新啟動 API（重啟行程／重建 COM 物件），單純再呼叫 `SKCenterLib_Login` 無效。自動重試邏輯務必加延遲與次數上限，不可迴圈硬重試。出處：`api_spec/_raw/v2.13.59/3.登入.md:350`。
+   - **9996 SK_ERROR_UPDATE_API_REQUIRED（V2.13.59 新增）**：「此版本已無法登入，請更新版本。」官方字面即為「版本」層級而非帳號或連線層級的拒絕，**屬終止性錯誤**——重試與重啟 API 皆無效，唯一解是更新 SKCOM 元件並重新註冊（步驟 1）。程式應立即停止重試迴圈並向使用者顯示「請更新 API 元件」。注意官方 V2.13.59 範例尚未示範此碼：`SKCOMTester/Form1.cs` 的登入回傳分支只處理到 9997，9996 會落入泛用 `else`（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/Form1.cs:175-180`），照抄範例且含自動重試者會無限重試並撞上「五次鎖定」。出處：`api_spec/_raw/v2.13.59/2.導覽.md:137`、`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4893`；V2.13.59 changelog 明列此新增碼見 `api_spec/_raw/v2.13.59/2.導覽.md:172`。注意 `3.登入.md` 的登入錯誤碼表僅列到 9997，9996 只收錄於導覽/主手冊代碼表。
 5. **密碼平台代碼（V2.13.45 起）**：101 token 異常（重新登入）、300 密碼錯誤、306 身分證字號錯誤、307 密碼鎖定、321 尚未完成連線測試（需至 API 下載專區跑驗證小工具）、502/507/511 群組/裝置碼相關、600/602/603 憑證未安裝或雙因子失敗、604 憑證過期或已註銷。處理方式對照見 `api_spec/_raw/3.登入.md:352-366`。
 6. **SKReplyLib_ConnectByID 呼叫時機**：務必在 `SKCenterLib_Login` 回傳 0（成功）之後才呼叫；回傳值本身只代表「本次呼叫」是否受理，不代表連線已建立。
 7. **連線完成判定二階段**：`OnSolaceReplyConnection`（`nErrorCode==0`）只代表連上，**必須再等 `OnComplete`** 才代表回補完成；只信賴前者會誤判為「已連線確認」。
 8. **勿在連線/斷線事件內立即操作**：`OnSolaceReplyConnection`／`OnSolaceReplyDisconnect` 觸發時底層尚未處理完畢，重連/斷線邏輯需用 Timer 延遲數秒（官方範例對 `nErrorCode==3033` 用 5 秒 Timer 重連）。
-9. **只做下單/回報、不需報價**：改用 `SKCenterLib_LoginSetQuote(UserID, Password, "N")` 停用報價功能，避免佔用行情連線（預設每 ID 最多 2 條）；停用後若呼叫報價功能會得到 1081 SK_ERROR_LOGIN_WITHOUT_SETQUOTE。
+9. **只做下單/回報、不需報價**：改用 `SKCenterLib_LoginSetQuote(UserID, Password, "N")` 停用報價功能，避免佔用行情連線（預設每 ID 最多 2 條：國內證券與國內期貨共用一條、海外期選單獨一條）；停用後若呼叫報價功能會得到 1081 SK_ERROR_LOGIN_WITHOUT_SETQUOTE，超過連線限制訂閱行情則得 3030 SK_SUBJECT_NO_QUOTE_SUBSCRIBE。
+   - 「每 ID 最多 2 條」的敘述出自 **V2.13.57 主手冊 3-3「行情物件連線限制說明」**（`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md:154-164`）；**官方 V2.13.59 手冊已移除此章節**（全文查無「總連線數量」「兩條行情連線」段落），但 `SKCenterLib_LoginSetQuote`（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:234-237`）、`SKQuoteLib_GetQuoteStatus`（`api_spec/_raw/v2.13.59/13.國內報價.md:185-201`）與 1081／3030 兩碼（`api_spec/_raw/v2.13.59/2.導覽.md:94`、`:132`）皆仍存在，故本節以 V2.13.57 留存原文為準；實際連線數請以 `SKQuoteLib_GetQuoteStatus` 回傳值為準。
 10. **COM 環境問題（非執行期錯誤碼，屬 Windows/regsvr32 層級）**：`0x8002801c` 需以系統管理員身分登入電腦後註冊；`0x80070005` 需以系統管理員身分執行 `install.bat`；DLL 位元（x64/x86）需與專案建置目標一致，且需與憑證、報價元件放在同一資料夾註冊。詳見 `api_spec/_raw/1.環境設置.md`。
+    - **V2.13.59《1.環境設置》改寫位元與 `regsvr32.exe` 的對應敘述**：改為「x32 位元：透過 SysWOW64 的 `regsvr32.exe` 註冊；x64 位元：透過 System32 的 `regsvr32.exe` 註冊 或 直接註冊即可」（`api_spec/_raw/v2.13.59/1.環境設置.md:99-100`），與 V2.13.57 的舊敘述（x86 直接註冊／x64 走 SysWow64，`api_spec/_raw/1.環境設置.md:99-100`）恰好互換。官方 2.13.58／2.13.59 版本歷程均未收錄此項，故無法斷定變更發生於哪一版，也無官方文字自承前版有誤（舊敘述以「作業系統位元」為主詞時亦可自洽）。
+    - **同一份 V2.13.59 合輯手冊的附錄仍是舊敘述**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4956-4957` 仍寫「x86位元:直接註冊即可／x64位元:透過SysWow64的regsvr32.exe註冊」），屬官方文件內部不一致；**請以《1.環境設置》與元件資料夾內的 `install.bat` 為準**（於元件資料夾中選對應位元的目錄、以系統管理員身分執行 `install.bat`，即由官方腳本代呼叫正確的 `regsvr32.exe`；`api_spec/_raw/v2.13.59/1.環境設置.md:12-13`），可避免踩到附錄的舊寫法。腳本行為與《1.環境設置》新敘述一致：x86 版呼叫 `%systemroot%\SysWoW64\regsvr32.exe`（`Source_code/CapitalAPI_2.13.59_CExample/元件/x86/install.bat:14`，僅 Windows XP 走直接註冊，同檔 `:7-12`），x64 版直接呼叫 `regsvr32.exe`（`Source_code/CapitalAPI_2.13.59_CExample/元件/x64/install.bat:5`）。

@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/chengyangtu/SKCOM_C_codebase_memory/actions/workflows/ci.yml/badge.svg)](https://github.com/chengyangtu/SKCOM_C_codebase_memory/actions/workflows/ci.yml)
 
-把群益證券/期貨 CapitalAPI（策略王 COM 元件，v2.13.57）的 21 份官方 docx 手冊與官方範例碼，整理成 AI 可直接消化的結構化規格＋預建知識圖譜——不用再把 400 頁 Word 檔一頁頁餵給 AI。
+把群益證券/期貨 CapitalAPI（策略王 COM 元件，**v2.13.59**；以 v2.13.57 為底增補）的官方 docx 手冊與官方範例碼，整理成 AI 可直接消化的結構化規格＋預建知識圖譜——不用再把 400 頁 Word 檔一頁頁餵給 AI。
+
+> 版本差異一覽：[`api_spec/changelog_2.13.57_to_2.13.59.md`](api_spec/changelog_2.13.57_to_2.13.59.md)（逐項對照）與 [`CHANGELOG.md`](CHANGELOG.md)（release notes，含破壞性變更）。
 
 > ⚠️ 非官方文件，內容以群益官方公告為準；下單 API 涉及真實金流，AI 生成的程式碼請一律先在模擬環境測試。
 
@@ -38,7 +40,8 @@ api_spec/            ★ 核心交付：AI 可讀規格庫
 ├── modules/         6 個 COM lib 完整規格（382 節；每方法含簽名/參數表/回傳/版本陷阱/範例碼行號）
 ├── flows/           登入、期選下單、報價訂閱、回報解析（Mermaid 時序圖 + 最小 C# 骨架）
 ├── error_codes.md   226 筆錯誤/回傳/登入代碼對照
-└── _raw/            21 份官方手冊逐字全文（tools/extract_docx.py 可重抽）
+├── _raw/            官方手冊逐字全文（V2.13.57 平面檔 21 份 + v2.13.59/ 19 份）
+└── changelog_2.13.57_to_2.13.59.md   兩版逐項差異對照
 Source_code/         群益官方 C#/C++ 範例專案（圖譜交叉引用用）
 .codebase-memory/    預建知識圖譜快照（clone 即用）
 tools/               docx → Markdown 抽取工具（純標準庫）

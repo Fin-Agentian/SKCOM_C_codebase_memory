@@ -11,6 +11,9 @@
 | 簡稱 | 檔案 | 位置 |
 |---|---|---|
 | **主表** | `api_spec/_raw/策略王COM元件使用說明_V2.13.57.md` | 第 6 節「代碼定義表」，行 5414–5678（V2.13.57，最新、最完整的單一總表，含 Proxy Server 及密碼平台代碼） |
+| **主表(V2.13.59)** | `api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md` | 第 6 節「代碼定義表」，行 4698–4934（V2.13.59 版總表，本次升版的比對基準；與 V2.13.57 同節逐行比對，**唯一差異是新增 9996 一列**） |
+| **導覽(V2.13.59)** | `api_spec/_raw/v2.13.59/2.導覽.md` | 「行情錯誤代碼定義表」行 91–140；版本控管變更記錄行 171–172（2.13.58／2.13.59 官方 changelog 兩列） |
+| **登入(V2.13.59)** | `api_spec/_raw/v2.13.59/3.登入.md` | 「錯誤代碼定義表」行 314–350（此分冊表**未收錄 9996**）；V2.13.45 密碼平台回覆代碼行 352–366 |
 | **登入** | `api_spec/_raw/3.登入.md` | 「錯誤代碼定義表」，行 314–366 |
 | **下單** | `api_spec/_raw/4.下單準備介紹.md` | 「錯誤代碼定義表」行 746–860；「Proxy Server 下單錯誤代碼」行 862–880 |
 | **導覽** | `api_spec/_raw/2.導覽.md` | 「行情錯誤代碼定義表」行 219–265；版本控管變更記錄 |
@@ -21,7 +24,11 @@
 
 方法：以**主表**（V2.13.57 版章節 6）為主幹全文抄錄，逐碼與登入／下單／導覽／回報／SGX／登入節錄等分冊文件（`grep -n "代碼\|錯誤\|SK_ERROR\|回傳值"` 交叉核對）比對是否一致；不一致或僅單一來源獨有處於「說明」欄註記。凡代碼在主表中為空白列（僅代碼、常數與說明皆缺）者，標記為「已停用／移除」並附上版本異動記錄可考的舊名稱。
 
-版本基準：V2.13.57（`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md` 版本控管記錄至 2025/04/14 V2.13.53 為止；本表代碼定義未見更新的後續版本說明）。
+版本基準：**V2.13.59**（以 V2.13.57 規格為底增補；差異見 `api_spec/changelog_2.13.57_to_2.13.59.md`）。原 V2.13.57 基準說明保留備考：`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md` 版本控管記錄至 2025/04/14 V2.13.53 為止。
+
+V2.13.59 比對來源與結論：以 `api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4698-4934`（第 6 節代碼定義表）逐行比對 V2.13.57 同節，**唯一差異是新增 9996 SK_ERROR_UPDATE_API_REQUIRED**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4893`），其餘 1000–1129／2001–2030／3001–3033／4001／5001–5019 全部逐碼相同。官方版本控管記錄已延伸至 2026/03/09 V2.13.58 與 2026/08/03 V2.13.59 兩列（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:37-38`、`api_spec/_raw/v2.13.59/2.導覽.md:171-172`），本檔本次的行為註記皆以該兩列為依據。
+
+註：V2.13.59 官方文件下架了數個章節（主手冊 3-3 行情連線限制、4-5／4-6 海期海選報價章、`14.海期報價`／`15.海選報價` 兩份分冊），但相關**代碼未被移除**（2015／2025／2026／3030 皆仍列於 .59 主表）。本檔凡引用已下架章節作為說明來源者，均在該列就地標明「來源 V2.13.57，.59 已刪除該節」。
 
 ---
 
@@ -52,7 +59,7 @@
 | 1020 | SK_ERROR_LOGIN_INVALID | 文件未附文字說明。 | 主表; 登入 |
 | 1021 | SK_ERROR_REGISTER_CALLBACK | 文件未附文字說明。 | 主表; 登入 |
 | 1022 | SK_ERROR_FUNCTION_PERMISSION_DENIED | 文件未附文字說明。 | 主表; 下單 |
-| 1023 | SK_ERROR_MARKET_OUT_OF_RANGE | MARKET 超出選擇範圍。 | 主表; 下單 |
+| 1023 | SK_ERROR_MARKET_OUT_OF_RANGE | MARKET 超出選擇範圍。**V2.13.58 修正**：官方修正「證券智慧單 CB 單 SendStockStrategyCB 發生 SK_ERROR_MARKET_OUT_OF_RANGE 問題」（`api_spec/_raw/v2.13.59/2.導覽.md:171` 功能修正第 1 項）。文件未載明原本哪些商品／市場代碼會誤觸發；若舊程式把「收到 1023」當成跳過或重試的 workaround，升級後該筆委託會真的送出，**升級前務必在模擬環境複測 SendStockStrategyCB 的錯誤分支**。 | 主表; 下單; 導覽(V2.13.59) |
 | 1024 | （已停用／移除） | V2.13.35 曾定義為 `SK_ERROR_VERIFY_STAMP_BY_CERT_IS_FAIL`（憑證驗章失敗），V2.13.38 起自文件刪除。 | 主表(空白列); 導覽 |
 | 1025 | SK_ERROR_FOREIGNSTOCK_PRICE_OUT_OF_RANGE | 文件未附文字說明；依常數名為複委託下單價格超出範圍。 | 主表; 下單 |
 | 1026 | SK_ERROR_FOREIGNSTOCK_UNDEFINE_COINTYPE | 文件未附文字說明；依常數名為複委託幣別未定義。 | 主表; 下單 |
@@ -168,7 +175,7 @@
 | 2012 | SK_WARNING_OSQUOTECENTER_IS_NOT_EXIST | 下單：下載海期／海選元件不存在。 | 主表; 下單 |
 | 2013 | SK_WARNING_INITIALIZE_OSQUOTECENTER_CONNECTION_FAIL | 下單：下載海期商品檔元件連線失敗。 | 主表; 下單 |
 | 2014 | SK_WARNING_INITIALIZE_OSQUOTECENTER_OO_CONNECTION_FAIL | 下單：下載海選商品檔元件連線失敗。 | 主表; 下單 |
-| 2015 | SK_WARNING_DOWNLOAD_OF_COM_DATA_IS_TIMEOUT | 下單：下載海期商品檔未完成。 | 主表; 下單 |
+| 2015 | SK_WARNING_DOWNLOAD_OF_COM_DATA_IS_TIMEOUT | 下單：下載海期商品檔未完成。處置：重新連線海期行情主機或重新下載商品檔（`SKOSQuoteLib_EnterMonitorLONG` → 再 `SKOrderLib_LoadOSCommodity`）。＊此處置建議來源為 V2.13.57 分冊 `api_spec/_raw/9.下單-海外期選.md:185,204`，V2.13.59 分冊 9 已刪除該備註（`api_spec/_raw/v2.13.59/9.下單-海外期選.md` 全文查無 2015／「重新下載」字樣），但代碼本身仍在 .59 主表（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4834`），執行期前置條件未變。 | 主表; 下單; 主表(V2.13.59) |
 | 2016 | SK_WARNING_DOWNLOAD_OO_COM_DATA_IS_TIMEOUT | 下單：下載海選商品檔未完成。 | 主表; 下單 |
 | 2017 | SK_WARNING_REGISTER_REPLYLIB_ONREPLYMESSAGE_FIRST | 請（註冊）接收公告再登入，請參考單元【註冊公告】。登入前需先掛 SKReplyLib.OnReplyMessage 並回傳 -1。 | 主表; 登入; SKCenterLib模組 |
 | 2018 | SK_WARNING_SIGN_STOCK_OR_FUTURE_API_AGREEMENT_FIRST | 1.確認為證券或期貨網路戶 2.確認未簽署證券 API 下單聲明書或期貨 API 下單聲明書 3.或無法取得聲明書狀態（例：確認 Internet 設定是否支援 TLS1.2）。 | 主表; 登入; SKCenterLib模組 |
@@ -178,8 +185,8 @@
 | 2022 | SK_WARNING_MORDER_STOP_SERVICE | 停止模擬平台服務通知。 | 主表; 登入 |
 | 2023 | SK_WARNING_QUOTE_MUST_SKQUOTELIB_ENTERMONITORLONG_FIRST | 請先執行國內報價 SKQuoteLib_EnterMonitorLONG 連線，再使用目前功能。 | 主表; 導覽 |
 | 2024 | SK_WARNING_QUOTE_MUST_SKQUOTELIB_ENTERMONITOR_FIRST | 請先執行國內報價 SKQuoteLib_EnterMonitor 連線，再使用目前功能。 | 主表; 導覽 |
-| 2025 | SK_WARNING_OSQUOTE_MUST_SKOSQUOTELIB_ENTERMONITORLONG_FIRST | 請先執行海期報價 SKOSQuoteLib_EnterMonitorLONG 連線，再使用目前功能。 | 主表; 導覽 |
-| 2026 | SK_WARNING_OOQUOTE_MUST_SKOOQUOTELIB_ENTERMONITORLONG_FIRST | 請先執行海選報價 SKOOQuoteLib_EnterMonitorLONG 連線，再使用目前功能。 | 主表; 導覽 |
+| 2025 | SK_WARNING_OSQUOTE_MUST_SKOSQUOTELIB_ENTERMONITORLONG_FIRST | 請先執行海期報價 SKOSQuoteLib_EnterMonitorLONG 連線，再使用目前功能。＊V2.13.59 **仍保留此碼**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4844`、`api_spec/_raw/v2.13.59/2.導覽.md:102`），但對應章節說明已下架（主手冊 4-5 SKOSQuoteLib 整章與 `14.海期報價` 分冊在 .59 已不存在）；規則仍在、說明不見，海期報價規格請查 V2.13.57 留存文件。 | 主表; 導覽; 主表(V2.13.59); 導覽(V2.13.59) |
+| 2026 | SK_WARNING_OOQUOTE_MUST_SKOOQUOTELIB_ENTERMONITORLONG_FIRST | 請先執行海選報價 SKOOQuoteLib_EnterMonitorLONG 連線，再使用目前功能。＊同 2025：V2.13.59 仍保留此碼（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4845`、`api_spec/_raw/v2.13.59/2.導覽.md:103`），但主手冊 4-6 SKOOQuoteLib 整章與 `15.海選報價` 分冊已下架。 | 主表; 導覽; 主表(V2.13.59); 導覽(V2.13.59) |
 | 2027 | （已停用／移除） | V2.13.35 曾定義為 `SK_WARNING_ACTIVE_CERTIFICATION_FIRST`，V2.13.38 起自文件刪除。 | 主表(空白列); 導覽 |
 | 2028 | SK_WARNING_SHOULD_IGNORE_GENERATEKEYCERT_STEP | 雙因子登入相關／目前身份不需執行此功能－雙因子群組 GenerateKey。非群組身份執行 SKCenterLib_GenerateKeyCert 會收到此碼。 | 主表; 登入; SKCenterLib模組 |
 | 2029 | SK_WARNING_SHOULD_CHECK_NETWORK | 文件未附文字說明。 | 主表; 登入 |
@@ -219,16 +226,17 @@
 | 3027 | SK_SUBJECT_TICK_LIMIT_EXCEED | 超過可訂閱 TICK／Best5／Best10 商品檔數。 | 主表; 導覽 |
 | 3028 | SK_SUBJECT_QUOTE_LIMIT_EXCEED_IN_ONE_PAGE | 超過可訂閱單頁即時報價商品檔數。 | 主表; 導覽 |
 | 3029 | SK_SUBJECT_QUOTE_STRING_EXIST_NULL | 查詢即時報價含空白、空值。 | 主表; 導覽 |
-| 3030 | SK_SUBJECT_NO_QUOTE_SUBSCRIBE | 行情連線超過限制時，無法訂閱行情通知。一個 ID 預設最多 2 條行情連線（國內共用 1 條、海外期選 1 條）。 | 主表; 導覽; SKCenterLib模組 |
+| 3030 | SK_SUBJECT_NO_QUOTE_SUBSCRIBE | 行情連線超過限制時，無法訂閱行情通知。一個 ID 預設最多 2 條行情連線（國內共用 1 條、海外期選 1 條）——＊「2 條」的細節來源為 **V2.13.57 主手冊 3-3 行情物件連線限制說明**（`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md:154-166`），**V2.13.59 已刪除該節**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:154` 由 3-2 直接跳到「4、ATL物件函式說明」）；.59 主表僅存一句「行情連線超過限制時，無法訂閱行情通知」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4878`、`api_spec/_raw/v2.13.59/2.導覽.md:132`）。代碼與執行期限制未變，僅官方說明下架。 | 主表; 導覽; SKCenterLib模組; 主表(V2.13.59); 導覽(V2.13.59) |
 | 3031 | SK_SUBJECT_NO_RELATED_MARKET_STOCKS | 未下載相關市場商品基本資料（原因：可確認證券或期貨下單聲明書簽署狀態）。 | 主表; 導覽; 國內報價.md |
 | 3032 | SK_SUBJECT_INITIALIZESTOCKS_FAIL | 文件未附文字說明。 | 主表; 導覽 |
 | 3033 | SK_SUBJECT_SOLACE_SESSION_EVENT_ERROR | Solace Session down 錯誤（因 AP 與主機連線異常，由主機端主動斷線）。 | 主表; 導覽; 回報 |
 | 4001 | SK_KLINE_DATA_TYPE_NOT_FOUND | KLINE TYPE 超出選擇範圍。 | 主表; 導覽 |
 
-## 四、系統層級碼（9997–9999）
+## 四、系統層級碼（9996–9999）
 
 | 代碼 | 常數/名稱 | 說明 | 出處 |
 |---|---|---|---|
+| 9996 | SK_ERROR_UPDATE_API_REQUIRED | 此版本已無法登入，請更新版本。（**V2.13.59 新增**，官方 changelog 原文「新增錯誤代碼9996 SK_ERROR_UPDATE_API_REQUIRED此版本已無法登入，請更新版本」，`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）＊**終止性錯誤**：代表所用 SKCOM 元件版本已被群益停用，須更新元件版本，程式端重試無效；登入錯誤處理務必把 9996 與 9997 分流，自動重試白名單不得包含 9996。＊備註：此碼只見於 .59 主手冊第 6 章代碼表（`…_V2.13.59.md:4893`）與 `api_spec/_raw/v2.13.59/2.導覽.md:137`，**分冊 `3.登入.md` 的「錯誤代碼定義表」（行 314–350）未收錄**，僅列到 9997（`api_spec/_raw/v2.13.59/3.登入.md:350`）——查分冊者會漏掉此碼。 | 主表(V2.13.59); 導覽(V2.13.59) |
 | 9997 | SK_ERROR_LOGIN_FAIL_LIMIT | 登入失敗已達五次，請重啟 API。 | 主表; 登入; SKCenterLib模組 |
 | 9998 | SK_THIS_FUNCTION_NOT_SUPPORTED | 此函式目前不提供。 | 主表; 下單 |
 | 9999 | SK_FAIL | ＊報價部分：若您未開立證券或期貨帳戶，無法訂閱或取得相關市場商品資料；若您未簽署證券 API 下單聲明書或期貨 API 下單聲明書，將無法訂閱或取得相關市場商品資料。V2.13.53 版本控管記錄另提到「APH 執行 SKOrderLib_Initialize 出現 SK_FAIL」之修正案例，可見本碼亦見於下單初始化情境，非僅報價專用。 | 主表; 導覽 |
@@ -309,6 +317,9 @@
 |---|---|---|
 | 0x8002801c | DllRegisterServer 呼叫失敗 | 需以 Administrator（系統管理員）身分登入電腦後再註冊 API |
 | 0x80070005 | DllRegisterServer 呼叫失敗 | 執行 install.bat 需按右鍵以系統管理員身分執行註冊 API |
+| （官方未列代碼） | 註冊失敗：**使用位元不對應的 regsvr32.exe**（官方未把此情形歸入上列兩碼，是《1.環境設置》另行規定的註冊前提） | 32 位元 SKCOM.dll 透過 SysWoW64 的 `regsvr32.exe` 註冊；64 位元 SKCOM.dll 透過 System32 的 `regsvr32.exe` 註冊或直接註冊即可（`api_spec/_raw/v2.13.59/1.環境設置.md:99-100`）。x86／x64 兩包的 install.bat 擇一勿混用，且兩包內容**並不相同**：x64 包直接呼叫 `regsvr32.exe "%~dp0SKCOM.dll"`（`Source_code/CapitalAPI_2.13.59_CExample/元件/x64/install.bat:5`），x86 包則呼叫 `%systemroot%\SysWoW64\regsvr32.exe`（`Source_code/CapitalAPI_2.13.59_CExample/元件/x86/install.bat:14`，僅 Windows XP x86 走直接註冊，同檔 `:7-12`）；註冊後以 `SKCenterLib_GetSKAPIVersionAndBit`（`api_spec/_raw/v2.13.59/3.登入.md:257-261`）確認回傳的「版本＿位元」（文件範例 `2.13.30_x64`）與建置平台一致 |
+
+＊**V2.13.59 文件調整（註冊路徑敘述）**：《1.環境設置》由 V2.13.57 的「x86位元:直接註冊即可／x64位元:透過SysWow64的regsvr32.exe註冊」改寫為上表所列的 SysWoW64／System32 對應（`api_spec/_raw/v2.13.59/1.環境設置.md:99-100`）。但**同一套 V2.13.59 合輯主手冊的附錄 A 仍保留舊字串**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4956-4957`），.59 文件組內部不一致，且官方 2.13.58／2.13.59 版本歷程未列此項（無從判定改寫落在哪一版）、V2.13.57 與 V2.13.59 兩版隨附的 install.bat 內容則完全相同（`diff` 驗證，x86／x64 各自沿用同一腳本）。只讀合輯手冊者會拿到舊指引，請以《1.環境設置》與 install.bat 為準，實務判準是「安裝的 SKCOM.dll 位元必須與執行檔平台一致」。
 
 ---
 

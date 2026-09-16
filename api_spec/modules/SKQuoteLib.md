@@ -1,6 +1,8 @@
 # SKQuoteLib — 國內報價元件（證券／期貨／選擇權即時行情、Ticks 五檔、K 線、技術分析；含期貨新制商品報價與 DLL 元件載體）
 
+> 版本基準 **V2.13.59**（以 V2.13.57 規格為底增補；差異見 `../changelog_2.13.57_to_2.13.59.md`）。
 > 來源：`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md`（4-4 節）、`api_spec/_raw/13.國內報價.md`、`api_spec/_raw/策略王COM元件使用說明_期貨新制商品報價元件.md`、`api_spec/_raw/C_Sharp策略王DLL元件使用說明.md`；範例碼：`Source_code/CapitalAPI_2.13.57_CExample/`。
+> V2.13.59 增補來源：`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md`（4-4 節）、`api_spec/_raw/v2.13.59/13.國內報價.md`、`api_spec/_raw/v2.13.59/C_Sharp策略王DLL元件使用說明.md`；範例碼：`Source_code/CapitalAPI_2.13.59_CExample/`。V2.13.58／V2.13.59 版本歷程原文見 `api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:37-38`。
 > 本元件有兩種載體：**COM 元件**（`Interop.SKCOMLib`，物件 `SKQuoteLib`，本檔主體）與 **DLL 載體**（`SKDLLCSharp.dll`，靜態類 `SK`，方法同名但簽名不同，見「DLL 載體專屬方法」節）。
 
 ## 總覽：功能分區表
@@ -8,6 +10,7 @@
 | 分區 | 函式 / 事件 | 用途一句話 |
 |---|---|---|
 | 連線 | SKQuoteLib_EnterMonitorLONG | 與報價伺服器建立連線（含盤中零股） |
+| 連線 | SKQuoteLib_EnterMonitorLONGByMarket | **V2.13.59 新增**：連線並指定只訂閱國內證券或國內期貨市場（與 EnterMonitorLONG 擇一） |
 | 連線 | SKQuoteLib_LeaveMonitor | 中斷所有 Solace 伺服器連線 |
 | 連線 | SKQuoteLib_IsConnected | 查目前報價連線狀態（0 斷線/1 連線/2 下載中） |
 | 連線 | SKQuoteLib_GetQuoteStatus | 查連線數與是否超過連線限制（僅限連線後） |
@@ -36,6 +39,8 @@
 | 五檔&成交明細 | OnNotifyHistoryTicksLONG（事件） | 當天 Tick 回補通知 |
 | 五檔&成交明細 | OnNotifyBest5LONG（事件） | 最佳五檔異動通知 |
 | 五檔&成交明細 | OnNotifyBest5Emerging（事件） | 興櫃五檔通知（單位為股） |
+| 即時分K | SKQuoteLib_GetLiveKLineLONG | **V2.13.59 新增**：取得目前分 K 物件（SKKLINE） |
+| 即時分K | OnNotifyLiveKLineData（事件） | **V2.13.59 新增**：即時分K／當日分K回補／該分鐘每筆 Tick（由 RequestTicks 訂閱觸發） |
 | K 線 | SKQuoteLib_RequestKLine | 歷史 K 線查詢（僅 AM 盤輸出） |
 | K 線 | SKQuoteLib_RequestKLineAM | 歷史 K 線查詢，可選 AM 盤/全盤 |
 | K 線 | SKQuoteLib_RequestKLineAMByDate | 歷史 K 線查詢，可指定日期區間與幾分 K |
@@ -60,6 +65,7 @@
 | DLL 載體專屬 | SKQuoteLib_GetStockByStockNo | （DLL）依市場別＋代號直接回傳 SKSTOCKLONG2 物件 |
 | DLL 載體專屬 | SKQuoteLib_RequestStocksOddLot | （DLL）訂閱盤中零股報價 |
 | DLL 載體專屬 | SKQuoteLib_RequestTicksOddLot | （DLL）訂閱盤中零股五檔＋Ticks |
+| 未公開（勿用） | SKQuoteLib_ExportStockList | **V2.13.59 Interop 出現此符號**，官方手冊與 changelog 均未記載，用途與簽名未知，勿在正式程式使用（見「未公開介面（勿用）」節） |
 | 舊版（已移除） | SKQuoteLib_EnterMonitor / SKQuoteLib_GetStockByIndex / SKQuoteLib_GetStockByNo / SKQuoteLib_GetTick / SKQuoteLib_GetBest5 / SKQuoteLib_GetMACD / SKQuoteLib_GetBoolTunel | SHORT index 舊版，V2.13.46 起移除，改用 LONG 版 |
 | 舊版事件（不再觸發） | OnNotifyQuote / OnNotifyTicks / OnNotifyHistoryTicks / OnNotifyBest5 / OnNotifyMACD / OnNotifyBoolTunel / OnNotifyFutureTradeInfo | 使用 EnterMonitorLONG 後不會被觸發，改接 LONG 版事件 |
 
@@ -112,6 +118,22 @@ m_SKQuoteLib.OnNotifyOddLotSpreadDeal        += new _ISKQuoteLibEvents_OnNotifyO
 m_nCode = m_SKQuoteLib.SKQuoteLib_EnterMonitorLONG();
 ```
 
+**V2.13.59 增補**：官方範例在同一份掛載清單末尾多掛一個即時分K 事件，並把連線改成「先看市場別下拉選單、再決定走哪一支 EnterMonitor」（抄自 `Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKQuote.cs:144,148-156`；下拉選單項目「0:證券」「1:期貨」「不指定」見 `Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKQuote.Designer.cs:2786-2789`）：
+
+```csharp
+m_SKQuoteLib.OnNotifyLiveKLineData += new _ISKQuoteLibEvents_OnNotifyLiveKLineDataEventHandler(m_SKQuoteLib_OnNotifyLiveKLineData);
+
+int nMarketType = int.Parse(boxMarketType.SelectedIndex.ToString());
+if (nMarketType == 0 || nMarketType == 1)
+{
+    m_nCode = m_SKQuoteLib.SKQuoteLib_EnterMonitorLONGByMarket(nMarketType);   // 0=只訂國內證券、1=只訂國內期貨
+}
+else
+{
+    m_nCode = m_SKQuoteLib.SKQuoteLib_EnterMonitorLONG();                      // 「不指定」（SelectedIndex=-1 亦走此分支）
+}
+```
+
 DLL 載體寫法（抄自 `api_spec/_raw/C_Sharp策略王DLL元件使用說明.md`；VS 引用 `SKDLLCSharp.dll`，`using SKDLLCSharp;`，全部透過靜態類 `SK.`）：
 
 ```csharp
@@ -130,7 +152,9 @@ SK.OnNotifyQuoteLONG += (nMarketNo, strStockNo) =>
 
 DLL 載體不使用 `SKQuoteLib_EnterMonitorLONG`／`SKQuoteLib_LeaveMonitor`，改由 `ManageServerConnection` + `LoadCommodity` 管理連線與商品檔。
 
-## 方法（COM 元件，V2.13.57 現行，共 34 個）
+**V2.13.59 變更（破壞性，僅限簡化版包裝層）**：`ManageServerConnection` 的 `nTargetType` 自 V2.13.59 手冊起僅列 **0=回報／1=國內行情／4=Proxy下單**，舊版的 2=海期行情、3=海選行情已從文件與範例下拉選單移除（`api_spec/_raw/v2.13.59/C_Sharp策略王DLL元件使用說明.md:50`、`Source_code/CapitalAPI_2.13.59_CExample/SKDLLTester/SKDLLTester/Form1.Designer.cs:4470-4473`），既有傳 2／3 的程式在 .59 包裝層已無對應連線目標（底層 COM 的 SKOSQuoteLib／SKOOQuoteLib 不受影響）；`nStatus` 手冊僅列 0～3（`api_spec/_raw/v2.13.59/C_Sharp策略王DLL元件使用說明.md:49`），`4:連線(備援(僅海期選))` 只存在於範例下拉選單（`Source_code/CapitalAPI_2.13.59_CExample/SKDLLTester/SKDLLTester/Form1.Designer.cs:4482-4487`），手冊已刪，勿依賴。nTargetType 的數值定義本身未重編號，但下拉選單少兩項後 SelectedIndex 已不等於 nTargetType，官方範例加了 `if (comboBoxTargetType.SelectedIndex == 2) nTargetType = 4;` 補償（`Source_code/CapitalAPI_2.13.59_CExample/SKDLLTester/SKDLLTester/Form1.cs:1144-1146`），照抄 SelectedIndex 寫法要留意。
+
+## 方法（COM 元件，V2.13.59 現行，共 36 個）
 
 ### SKQuoteLib_EnterMonitorLONG
 - 用途：(LONG index) 與報價伺服器建立連線（含盤中零股市場商品）。
@@ -163,7 +187,7 @@ DLL 載體不使用 `SKQuoteLib_EnterMonitorLONG`／`SKQuoteLib_LeaveMonitor`，
 - 範例：`SKCOMTesterV2/WindowsFormsApp1/Quote/QuoteForm.cs:748`、`SKCOMTester/SKQuote.cs:269`、`SKDLLTester/SKDLLTester/Form1.cs:3322`（DLL 版）
 
 ### SKQuoteLib_RequestTicks
-- 用途：訂閱成交明細以及五檔，含當天 Tick 回補（不支援盤中零股）。
+- 用途：訂閱成交明細以及五檔，含當天 Tick 回補（不支援盤中零股）。**V2.13.59 起**同一次訂閱另推送「即時分K（含當日分K回補）」與「該分鐘每筆 Tick 更新一次分K」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2277`、`api_spec/_raw/v2.13.59/13.國內報價.md:412`）。
 - 簽名：`int SKQuoteLib_RequestTicks(short psPageNo, string bstrStockNo);`（IDL：`Long SKQuoteLib_RequestTicks([in,out] SHORT* psPageNo, [in] BSTR bstrStockNo);`）
 - 參數：
 
@@ -174,6 +198,8 @@ DLL 載體不使用 `SKQuoteLib_EnterMonitorLONG`／`SKQuoteLib_LeaveMonitor`，
 
 - 回傳：LONG；0 成功，非 0 失敗（見 ../error_codes.md）。
 - 備註：須先 EnterMonitorLONG 並等 SK_SUBJECT_CONNECTION_STOCKS_READY。即時 Tick→OnNotifyTicksLONG；Tick 回補→OnNotifyHistoryTicksLONG；五檔→OnNotifyBest5LONG。期選 AM 盤同 RequestStocks。盤中零股請改用 SKQuoteLib_RequestTicksWithMarketNo。V2.13.57 修正可無限訂閱問題（訂閱數限制 10 檔）。
+- 備註（V2.13.59 新增）：即時分K→OnNotifyLiveKLineData（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2283`、`api_spec/_raw/v2.13.59/13.國內報價.md:418`）。**本函式是即時分K 唯一有官方文件依據的訂閱入口**（手冊 4-4-35 提到的 `RequestLiveKLine` 並不存在，見「陷阱與注意」）；官方文件也把本節歸類改為「五檔&成交明細&即時分K」（`api_spec/_raw/v2.13.59/13.國內報價.md:410`）。分K **沒有獨立的取消函式**（V2.13.59 手冊無 Cancel 類分K 函式，Interop 符號集亦無）；而 4-4-22 `SKQuoteLib_CancelRequestTicks` 的說明本版未同步改寫，仍只寫「取消訂閱 RequestTicks 的成交明細及五檔」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2473`），取消後是否連帶停止推送 OnNotifyLiveKLineData，官方未載明，需實機確認。既有只想收 Tick／五檔的程式在 V2.13.59 會多收到 OnNotifyLiveKLineData，事件端須能忽略未預期事件而不視為錯誤。
+- 備註（V2.13.58／V2.13.59 修正）：V2.13.58 修正訂閱國內行情「價差商品」問題、訂閱國內報價慢的問題、「只有全盤商品的 T 盤需要加 AM」的報價行為（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:37`）；V2.13.59 修正國內報價第一筆 Ticks 缺失（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）。
 - 範例：`SKCOMTesterV2/WindowsFormsApp1/Quote/QuoteForm.cs:765`、`SKCOMTester/SKQuote.cs:182`
 
 ### SKQuoteLib_RequestKLine
@@ -443,6 +469,7 @@ DLL 載體不使用 `SKQuoteLib_EnterMonitorLONG`／`SKQuoteLib_LeaveMonitor`，
 
 - 回傳：LONG；0 成功，非 0 失敗（見 ../error_codes.md）。
 - 備註：僅限當次報價連線成功後查詢。例：最大連線數 2 且目前超限 → 回傳 2, True。
+- 備註（V2.13.59 文件變動）：函式本身未移除（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2480`，V2.13.59 手冊 4-4-23 仍在），但**官方 V2.13.59 手冊已移除 3-3「行情物件連線限制說明」與 3-3-2「國內行情相關說明」章節**——「總連線數共 2 條、國內證券與國內期貨共用一條、海外期選單獨一條」以及「同一 SKQuoteLib 物件不建議混用 RequestStocks／RequestStocksWithMarketNo、RequestTicks／RequestTicksWithMarketNo」等連線分配政策，僅存於 V2.13.57 留存原文（`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md`）。本函式回傳值的判讀基準因此已無 V2.13.59 官方章節可對照。
 - 範例：`SKCOMTesterV2/WindowsFormsApp1/Quote/QuoteForm.cs:732`、`SKCOMTester/SKQuote.cs:1516`
 
 ### SKQuoteLib_RequestKLineAMByDate
@@ -477,6 +504,7 @@ DLL 載體不使用 `SKQuoteLib_EnterMonitorLONG`／`SKQuoteLib_LeaveMonitor`，
 
 - 回傳：LONG；0 成功，非 0 失敗（見 ../error_codes.md）。
 - 備註：市場編號型態與 SKSTOCK 物件內 bstrMarketNo（BSTR）不同。須等 SK_SUBJECT_CONNECTION_STOCKS_READY；須以 SKQuoteLib_EnterMonitorLONG 登入。未訂閱即時報價（例如只訂 RequestTicks）時僅能取得非即時欄位（商品名稱、昨收價）。
+- 備註（V2.13.59 修正）：版本歷程列有「修正 index 不一致問題」但**未指名模組**，手冊本文亦無對應敘述（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）。若程式會快取事件回傳的 nIndex／nStockidx、稍後再回頭以本函式取物件，換版後建議重新驗證對應關係。
 - 範例：`SKCOMTesterV2/WindowsFormsApp1/Quote/QuoteForm.cs:365`、`SKCOMTester/SKQuote.cs:460`
 
 ### SKQuoteLib_GetStockByNoLONG
@@ -491,6 +519,7 @@ DLL 載體不使用 `SKQuoteLib_EnterMonitorLONG`／`SKQuoteLib_LeaveMonitor`，
 
 - 回傳：LONG；0 成功，非 0 失敗（見 ../error_codes.md）。
 - 備註：僅適用現股，不適用盤中零股-上市/上櫃（零股改用 GetStockByMarketAndNo）。須等 SK_SUBJECT_CONNECTION_STOCKS_READY、須以 EnterMonitorLONG 登入。未訂閱即時報價時僅回基本資料。
+- 備註（V2.13.58／V2.13.59 修正）：V2.13.58 修正「GetStockByNoLONG 商品代號取物件問題」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:37`）；V2.13.59 修正「內期夜盤收盤價未更新問題」，影響 T+1（夜盤）時段自 SKSTOCKLONG 讀到的成交／收盤價（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）。兩者手冊本文均無細節，僅列於版本歷程。
 - 範例：`SKCOMTesterV2/WindowsFormsApp1/Quote/QuoteForm.cs:1001`、`SKCOMTester/SKQuote.cs:257`
 
 ### SKQuoteLib_GetTickLONG
@@ -599,6 +628,49 @@ DLL 載體不使用 `SKQuoteLib_EnterMonitorLONG`／`SKQuoteLib_LeaveMonitor`，
 - 備註：適用盤中零股。須先 EnterMonitorLONG 並等 SK_SUBJECT_CONNECTION_STOCKS_READY。即時 Tick→OnNotifyTicksLONG；回補→OnNotifyHistoryTicksLONG；五檔→OnNotifyBest5LONG。與 RequestTicks 不建議在同一 SKQuoteLib 物件同時使用。V2.13.57 修正可無限訂閱問題。
 - 範例：`SKCOMTesterV2/WindowsFormsApp1/Quote/QuoteForm.cs:908`、`SKCOMTester/SKQuote.cs:194`
 
+### SKQuoteLib_GetLiveKLineLONG
+- 用途：（**V2.13.59 新增**）(LONG index) 取得指定商品目前的即時分 K 資訊（填入 SKKLINE 物件）。
+- 簽名：`int SKQuoteLib_GetLiveKLineLONG(string bstrStockNo, ref SKKLINE pSKKLine);`（IDL：`Long SKQuoteLib_GetLiveKLineLONG([in] BSTR bstrStockNo, [in,out] struct SKKLINE* pSKKLine);`）
+- 參數：
+
+| 參數 | 型別 | 說明 |
+|---|---|---|
+| bstrStockNo | BSTR | 商品代號，例如 6005 |
+| pSKKLine | SKKLINE*（in,out） | SKCOM 元件的 SKKLINE 物件，帶入此欄位由函式庫回填 |
+
+- 回傳：LONG；0 成功，非 0 失敗（見 ../error_codes.md）。
+- 結構 SKKLINE（V2.13.59 新增，主手冊 5-26；`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:4687-4697`、`api_spec/_raw/v2.13.59/13.國內報價.md:1409-1419`）：
+
+```c
+struct SKKLINE
+{
+    LONG nDate;    // 交易日 YYYYMMDD
+    LONG nTimehm;  // 成交時間 HHmm（Ex: 904 代表 09:04）
+    LONG nOpen;    // 開盤價
+    LONG nHigh;    // 最高價
+    LONG nLow;     // 最低價
+    LONG nClose;   // 目前價
+    LONG nQty;     // 目前量
+};
+```
+
+- 備註：須先以 SKQuoteLib_EnterMonitorLONG 登入；避免在 OnNotifyLiveKLineData 通知事件裡呼叫本函式（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2617`、`api_spec/_raw/v2.13.59/13.國內報價.md:460`）。手冊描述寫「需先訂閱即時分K RequestLiveKLine」，但 `RequestLiveKLine` 不存在，實際訂閱入口為 SKQuoteLib_RequestTicks（見「陷阱與注意」）。
+- 備註（欄位語意）：`nTimehm` 是**不補零的 HHmm 整數**（904＝09:04），要顯示成四位需自行補零（官方範例用 `ToString("D4")`）；`nOpen/nHigh/nLow/nClose` 為**未還原小數的原始整數**，且 SKKLINE 不帶小數位欄位，須另從 SKSTOCKLONG 的 `sDecimal` 取得位數還原。
+- 範例：`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKQuote.cs:1750-1774`（宣告物件 :1758、呼叫 :1760、時間補零 :1769）
+
+### SKQuoteLib_EnterMonitorLONGByMarket
+- 用途：（**V2.13.59 新增**）(LONG index) 與報價伺服器建立連線，並指定要訂閱的市場。
+- 簽名：`int SKQuoteLib_EnterMonitorLONGByMarket(int nMarketType);`（IDL：`Long SKQuoteLib_EnterMonitorLONGByMarket([in] LONG nMarketType);`）
+- 參數：
+
+| 參數 | 型別 | 說明 |
+|---|---|---|
+| nMarketType | LONG | 0=只訂閱國內證券市場；1=只訂閱國內期貨市場 |
+
+- 回傳：LONG；0 成功，非 0 失敗（見 ../error_codes.md）。
+- 備註：與 SKQuoteLib_EnterMonitorLONG **請擇一使用**（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2619-2625`、`api_spec/_raw/v2.13.59/13.國內報價.md:225-231`）。既有 SKQuoteLib_EnterMonitorLONG 本版未變動，舊寫法不受影響（SKQuoteLib_EnterMonitor 為 V2.13.46 起已移除的舊版函式，Interop 符號雖兩版都在但不應使用）；官方範例以下拉選單選 0／1 才走本函式，選「不指定」（含 SelectedIndex=-1）仍走 EnterMonitorLONG。手冊未說明本函式是否同樣觸發 SK_SUBJECT_CONNECTION_STOCKS_READY 以外的差異，連線流程請比照 EnterMonitorLONG。
+- 範例：`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKQuote.cs:148-156`、下拉選單項目 `Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKQuote.Designer.cs:2786-2789`
+
 ## 方法（DLL 載體 SKDLLCSharp 專屬，共 3 個）
 
 DLL 載體（`SKDLLCSharp.dll`，靜態類 `SK`）與 COM 同名方法簽名不同：`SKQuoteLib_RequestStocks(string strStockNos)`（無 PageNo）、`SKQuoteLib_RequestTicks(int nItemNo, string strStockNo)`、`SKQuoteLib_CancelRequestStocks(string strStockNos)`、`SKQuoteLib_CancelRequestTicks(string strStockNo)`。以下三個方法僅存在於 DLL 載體：
@@ -646,7 +718,9 @@ DLL 載體（`SKDLLCSharp.dll`，靜態類 `SK`）與 COM 同名方法簽名不�
 
 ## 方法（舊版 SHORT index，V2.13.46 起已移除，共 7 個）
 
-V2.13.31 起因單一市場商品總數可能超過 SHORT 上限（32767），新增 LONG index 系列；V2.13.46（含）以上版本不再提供下列舊版函式，僅為對照保留（新舊對照見主說明「3-4 行情功能修改說明」）：
+V2.13.31 起因單一市場商品總數可能超過 SHORT 上限（32767），新增 LONG index 系列；V2.13.46（含）以上版本不再提供下列舊版函式，僅為對照保留（新舊對照見 **V2.13.57 主說明「3-4 行情功能修改說明」（V2.13.59 已整節刪除）**）：
+
+> 官方 V2.13.59 手冊已移除 3-4「行情功能修改說明」章節（含 SKQuoteLib／SKOSQuoteLib／SKOOQuoteLib 三張新舊函式對應一覽表與 SHORT 32767 溢位情境）；函式本身未移除（Interop 符號兩版一致），本節以 V2.13.57 留存原文為準。V2.13.59 手冊的 2.13.31 版本歷程列仍寫「詳情請參考 3-4 行情功能修改說明」，已成為指向已刪章節的失效交叉引用（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:11`）。
 
 ### SKQuoteLib_EnterMonitor
 - 用途：舊版報價連線。已移除，改用 SKQuoteLib_EnterMonitorLONG。簽名待確認（推測 `int SKQuoteLib_EnterMonitor();`）。與 EnterMonitorLONG 僅能擇一使用。
@@ -670,7 +744,7 @@ V2.13.31 起因單一市場商品總數可能超過 SHORT 上限（32767），�
 ### SKQuoteLib_GetBoolTunel
 - 用途：舊版取得布林通道。已移除，改用 SKQuoteLib_GetBoolTunelLONG。簽名待確認。範例未見。
 
-## 事件（共 20 個）
+## 事件（共 21 個）
 
 COM 事件介面為 `_ISKQuoteLibEvents`，掛載寫法 `m_pSKQuote.<事件> += new _ISKQuoteLibEvents_<事件>EventHandler(handler);`。文件行文中偶以 `SKQuoteLib_OnNotifyKLineData`、`SKQuoteLib_OnNotifyTicksLONG` 等「lib 前綴」稱呼同一事件。
 
@@ -966,6 +1040,25 @@ COM 事件介面為 `_ISKQuoteLibEvents`，掛載寫法 `m_pSKQuote.<事件> += 
 - 備註：資料全部回傳完畢後回傳一筆以「##」開頭的內容表示查詢結束。
 - 範例：`SKCOMTesterV2/WindowsFormsApp1/Quote/QuoteForm.cs:350-353`
 
+### OnNotifyLiveKLineData
+- 用途：（**V2.13.59 新增**）回傳即時技術分析資訊（即時分K），由 SKQuoteLib_RequestTicks 的訂閱觸發。
+- 簽名：`void OnNotifyLiveKLineData(int nType, string bstrStockNo, int nDate, int nTimehm, int nOpen, int nHigh, int nLow, int nClose, int nQty);`（IDL：`void OnNotifyLiveKLineData([in] LONG nType, [in] BSTR bstrStockNo, [in] LONG nDate, [in] LONG nTimehm, [in] LONG nOpen, [in] LONG nHigh, [in] LONG nLow, [in] LONG nClose, [in] LONG nQty);`）
+- 參數：
+
+| 參數 | 型別 | 說明 |
+|---|---|---|
+| nType | LONG | 0=資料重置（清盤通知），**本筆資料價格全給 0，需捨棄目前已收到的資料**；1=即時分K（先收當日回補分K，之後 1 分鐘給一次）；2=該分鐘每筆 Tick |
+| bstrStockNo | BSTR | 商品代號 |
+| nDate | LONG | 日期 YYYYMMDD |
+| nTimehm | LONG | 成交時間 HHmm，**不補零**（Ex: 904 代表 09:04） |
+| nOpen / nHigh / nLow | LONG | 開盤價／最高價／最低價 |
+| nClose | LONG | 目前價 |
+| nQty | LONG | 目前量 |
+
+- 備註：須以 SKQuoteLib_EnterMonitorLONG 登入才會觸發。**價格為原始價格，需自行除以小數位數還原**（官方例：群益證 3815→38.15、台指期 4557900→45579.00）。不支援盤中零股、不支援價差商品；證券以整股計算，不含「鉅額交易、盤中零股、盤後零股」。未開立證券帳戶無法訂閱或取得證券上市櫃／興櫃商品與上市櫃指數（含即時分K）；未開立期貨帳戶同理無法取得期選商品（含即時分K）。（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2905-2918`、`api_spec/_raw/v2.13.59/13.國內報價.md:1114-1127`）
+- 備註（重入）：官方明示應**避免**在本事件內呼叫對應的取值函式 SKQuoteLib_GetLiveKLineLONG（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2617`、`api_spec/_raw/v2.13.59/13.國內報價.md:460`），寫法比照 GetTickLONG／GetBest5LONG 的重入禁忌；手冊用字為「避免」而非明文禁止。
+- 範例：掛載 `Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKQuote.cs:144`、handler `Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKQuote.cs:950-953`（官方示範以 nType==1 的分K 自組 5 分K，見同檔 :955-1002）
+
 ### 舊版事件（使用 EnterMonitorLONG 後不再觸發）
 
 OnNotifyQuote、OnNotifyHistoryTicks、OnNotifyTicks、OnNotifyBest5、OnNotifyBoolTunel、OnNotifyMACD、OnNotifyFutureTradeInfo — SHORT index 舊版事件，V2.13.46 起隨舊版函式移除；一律改接對應的 LONG 版事件。範例碼中 `m_SKQuoteLib_OnNotifyQuote`、`m_SKQuoteLib_OnNotifyBest5`、`m_SKQuoteLib_OnConnection` 等只是 handler 方法命名慣例，實際掛載的都是 LONG 版事件（見「初始化與事件註冊」）。
@@ -1001,6 +1094,12 @@ OnNotifyQuote、OnNotifyHistoryTicks、OnNotifyTicks、OnNotifyBest5、OnNotifyB
 | SKQuoteLib_RequestMACDpsPageNo | 範例 UI 控件名 textBoxSKQuoteLib_RequestMACDpsPageNo | 13.國內報價.md:517 |
 | SKQuoteLib_RequestTicksWithMarketNosMarketNo | 範例 UI 控件名 comboBoxSKQuoteLib_RequestTicksWithMarketNosMarketNo | 13.國內報價.md:460 |
 
+## 未公開介面（勿用）
+
+| 符號 | 出處 | 說明 |
+|---|---|---|
+| `SKQuoteLib_ExportStockList` | 僅見於 V2.13.59 Interop.SKCOMLib 的 ISKQuoteLib 介面（符號名稱，無官方簽名可考） | **V2.13.59 Interop 出現此符號，官方手冊與 changelog 均未記載，用途與簽名未知，勿在正式程式使用。** V2.13.57 Interop 無此符號；V2.13.59 官方手冊全 19 份、官方範例樹（`Source_code/CapitalAPI_2.13.59_CExample/`）grep 皆 0 命中，原生 SKCOM.dll 匯出表也未新增對應項目。商品清單查詢請一律使用有文件的 SKQuoteLib_RequestStockList＋OnNotifyStockList／OnNotifyCommodityListWithTypeNo。 |
+
 ## 陷阱與注意
 
 1. **連線順序是硬約束**：`SKQuoteLib_EnterMonitorLONG()` → 等 `OnConnection` 收到 `SK_SUBJECT_CONNECTION_STOCKS_READY`（3003）→ 才能 RequestStocks / RequestTicks / RequestStockList 等。在 OnConnection 事件內直接做連線/斷線/訂閱動作會失敗（商品檔未下載完成）。V2.13.46 曾修正收不到 3003 事件的問題。
@@ -1017,5 +1116,10 @@ OnNotifyQuote、OnNotifyHistoryTicks、OnNotifyTicks、OnNotifyBest5、OnNotifyB
 12. **LeaveMonitor 影響範圍**：會中斷所有 Solace 連線（報價＋回報），但不中斷模擬平台回報與公告；只想斷單一連線用 SKReplyLib 對應功能。
 13. **技術分析限制**：MACD/布林通道僅證券市場；K 線 solace 僅 1 分鐘 K（5/30 分自行組）、無 288 日 K；盤中零股不提供歷史 K 線、大盤查詢、MACD、布林通道。
 14. **GetQuoteStatus 僅限連線成功後使用**；回傳語意依 pbIsOutLimit 而不同（超限時為最大可用連線數，未超限時為先前已用連線數）。
-15. **DLL 載體差異**：SKDLLCSharp 用 `SK.` 靜態類，連線改用 ManageServerConnection＋LoadCommodity；事件用 `event Action<...>`（OnNotifyQuoteLONG 直接給 strStockNo、Best5 用陣列）；零股訂閱為獨立方法 RequestStocksOddLot / RequestTicksOddLot；商品清單查詢 RequestStockList 直接回傳 StockListParser 物件而非事件。
+15. **DLL 載體差異**：SKDLLCSharp 用 `SK.` 靜態類，連線改用 ManageServerConnection＋LoadCommodity；事件用 `event Action<...>`（OnNotifyQuoteLONG 直接給 strStockNo、Best5 用陣列）；零股訂閱為獨立方法 RequestStocksOddLot / RequestTicksOddLot；商品清單查詢 RequestStockList 直接回傳 StockListParser 物件而非事件。**V2.13.59 變更（破壞性，僅限包裝層）**：`ManageServerConnection` 的 nTargetType 自 V2.13.59 起僅 0=回報／1=國內行情／4=Proxy下單（舊 2=海期行情、3=海選行情已刪，傳 2／3 的既有程式須改走 COM 元件，`api_spec/_raw/v2.13.59/C_Sharp策略王DLL元件使用說明.md:50`）；nStatus 手冊僅列 0～3，`4:連線(備援(僅海期選))` 只存在於範例下拉選單、手冊已刪（`api_spec/_raw/v2.13.59/C_Sharp策略王DLL元件使用說明.md:49`、`Source_code/CapitalAPI_2.13.59_CExample/SKDLLTester/SKDLLTester/Form1.Designer.cs:4482-4487`）。
 16. **版本備註**：V2.13.57 修正 RequestLiveTick 訂閱數、RequestTicks/RequestTicksWithMarketNo 可無限訂閱問題；V2.13.52 起 OnNotifyStockList / OnNotifyCommodityListWithTypeNo 回傳內容新增跳動點、幣別。
+17. **手冊誤植不存在的 `RequestLiveKLine`（V2.13.59）**：4-4-35 GetLiveKLineLONG 的說明寫「需先訂閱即時分K RequestLiveKLine」（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2611`、`api_spec/_raw/v2.13.59/13.國內報價.md:454`），但 V2.13.59 手冊全 19 份中僅這兩處（同一句敘述）出現、無對應函式章節，V2.13.57／V2.13.59 的 Interop 符號集與原生 SKCOM.dll 匯出表四份 grep 皆 0 命中。**實際訂閱入口是 SKQuoteLib_RequestTicks**（4-4-3 已改寫，`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:2277,2283`）。另注意**勿誤用 SKQuoteLib_RequestLiveTick**——名稱相近但那是「只推即時成交明細」的訂閱，只觸發 OnNotifyTicksLONG，與分K 無關。
+18. **即時分K 的價格還原（V2.13.59）**：OnNotifyLiveKLineData 與 SKKLINE 的價格皆為未還原的原始整數，且 SKKLINE **不帶小數位欄位**，須另從 SKSTOCKLONG 的 `sDecimal` 取得位數還原。官方範例把分K 價格寫死除以 `100m`（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKQuote.cs:1764-1767`），與**同一份範例**對即時報價採用的 `Math.Pow(10, pStockLONG.sDecimal)` 慣例（`Source_code/CapitalAPI_2.13.59_CExample/SKCOMTester/SKQuote.cs:1203`）自相矛盾；官方備註舉的兩個例子（3815→38.15、4557900→45579.00）恰好都是 2 位小數，非 2 位小數的商品照抄範例會顯示錯誤。另外 `nTimehm` 不補零（904＝09:04），做時間比對／分桶前要先正規化。
+19. **V2.13.58 報價行為修正（換版須複驗）**：修正訂閱國內行情「價差商品」問題、修正訂閱國內報價慢的問題、修正「只有全盤商品的 T 盤需要加 AM」的報價行為、修正 GetStockByNoLONG 以商品代號取物件問題（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:37`）。其中「加 AM」規則的適用範圍被縮小為全盤商品——**既有程式若無條件對所有期選商品加 AM，換版後行為可能與新版不一致，須重新確認訂閱代號組法**。
+20. **V2.13.59 報價行為修正（換版須複驗）**：修正國內報價第一筆 Ticks 缺失、修正內期夜盤收盤價未更新問題、修正 index 不一致問題（`api_spec/_raw/v2.13.59/策略王COM元件使用說明_V2.13.59.md:38`）。**若應用層曾為了「第一筆 Ticks 缺失」做過補償（刻意忽略首筆或自行補值），在 V2.13.59 會多算一筆，補償邏輯必須移除**；逐筆重建（自組分K、量能統計）請重新對帳。「index 不一致」官方未指名模組、手冊本文無敘述，會快取 nIndex／nStockidx 的程式建議重驗。
+21. **官方章節刪除造成的查無可查（V2.13.59）**：3-3「行情物件連線限制說明」（總連線數共 2 條、國內證券與國內期貨共用一條、海外期選單獨一條、可用 SKCenterLib_LogInSetQuote 停用報價、可用 SKQuoteLib_GetQuoteStatus 查連線數）、3-3-2「國內行情相關說明」（不建議同物件混用 RequestStocks／RequestStocksWithMarketNo、RequestTicks／RequestTicksWithMarketNo）、3-4「行情功能修改說明」（SHORT 32767 新舊對照表）在 V2.13.59 手冊全數刪除，且未搬到其他章節。相關函式本身未移除（Interop 符號兩版一致），這些政策說明**僅存於 V2.13.57 留存原文**（`api_spec/_raw/策略王COM元件使用說明_V2.13.57.md`）；排查「訂閱不到行情」「取不到 index > 32767 的商品」時請回查 V2.13.57 文件。

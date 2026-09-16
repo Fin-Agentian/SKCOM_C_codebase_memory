@@ -1,11 +1,11 @@
 {
-    "schema_version": 1,
+    "schema_version": 2,
     "commit": "",
-    "indexed_at": "2026-07-04T17:02:11Z",
+    "indexed_at": "2026-09-15T15:25:53Z",
     "project": "project-SKCOM_C_codebase_memory",
-    "nodes": 11774,
-    "edges": 21013,
-    "original_size": 15990784,
-    "compressed_size": 1673883,
+    "nodes": 22520,
+    "edges": 61995,
+    "original_size": 43319296,
+    "compressed_size": 3001232,
     "compression_level": 9
 }
